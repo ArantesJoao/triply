@@ -15,6 +15,7 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -53,7 +54,6 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
     null,
   );
   const [openItemId, setOpenItemId] = useState<string | null>(null);
-  const [focusColumnId, setFocusColumnId] = useState<string | null>(null);
   const [addingColumn, setAddingColumn] = useState(false);
   const [autoFocusItemId, setAutoFocusItemId] = useState<string | null>(null);
 
@@ -71,6 +71,31 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
   const listColumns = useMemo(
     () => cityColumns.filter((column) => !column.timed),
     [cityColumns],
+  );
+
+  // ── Mobile column selection, backed by the URL (?col=sat10) ──
+  // Tapping a day on the mobile rail writes the column key into the URL so
+  // refreshing (or sharing the link) opens the same day.
+  const searchParams = useSearchParams();
+  const initialCol = searchParams.get('col');
+
+  const [colKey, setColKey] = useState<string | null>(initialCol);
+
+  const focusColumnId = useMemo(() => {
+    if (!colKey) return null;
+    return cityColumns.find((c) => c.key === colKey)?.id ?? null;
+  }, [colKey, cityColumns]);
+
+  const setFocusColumnId = useCallback(
+    (columnId: string) => {
+      const col = columns[columnId];
+      if (!col) return;
+      setColKey(col.key);
+      const params = new URLSearchParams(window.location.search);
+      params.set('col', col.key);
+      window.history.replaceState(null, '', `?${params.toString()}`);
+    },
+    [columns],
   );
 
   /**
