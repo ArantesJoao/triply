@@ -11,7 +11,7 @@
  * yet — a user row is created for the address and the Google account attaches
  * to it on first sign-in.
  */
-import 'dotenv/config';
+import './env';
 
 import { eq } from 'drizzle-orm';
 

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { normaliseTime } from '@/lib/time';
+
 /**
  * Field names and types deliberately mirror the build spec's data model, so an
  * LLM handed the schema can generate correct requests with no translation
@@ -8,9 +10,15 @@ import { z } from 'zod';
  * nice-to-have. Both default sensibly when omitted.
  */
 
-const timeString = z
-  .string()
-  .regex(/^\d{1,2}[:.]?\d{2}$/, 'Use 24-hour "HH:MM", e.g. "19:30".');
+/**
+ * Validated with the same parser the app uses, so an out-of-range value like
+ * "99:99" is rejected outright. A looser pattern would let it through and then
+ * normalise it to null, silently unscheduling the card — an agent has no way
+ * to notice its time was dropped.
+ */
+const timeString = z.string().refine((value) => normaliseTime(value) !== null, {
+  message: 'Use a valid 24-hour time, e.g. "19:30".',
+});
 
 export const itemInput = z.object({
   title: z.string().max(300).optional(),
