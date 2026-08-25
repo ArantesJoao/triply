@@ -335,7 +335,7 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
             />
           </div>
         ) : (
-          <div className="flex w-max items-start gap-3 px-4 pt-3 pb-12">
+          <div className="flex items-start gap-3 px-4 pt-3 pb-12 lg:w-max">
             {showTimed && <AxisGutter axis={axis} height={axisHeight} />}
 
             {visibleTimed.map((column) => (
@@ -343,7 +343,7 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
                 key={column.id}
                 columnId={column.id}
                 axis={axis}
-                width={compact ? `calc(100vw - ${AXIS_GUTTER_PX + 40}px)` : TIMED_COLUMN_PX}
+                width={compact ? `calc(100vw - ${AXIS_GUTTER_PX + 44}px)` : TIMED_COLUMN_PX}
                 dropHint={hint?.columnId === column.id ? hint.minutes : null}
                 onOpenItem={setOpenItemId}
                 onAddItem={handleAddItem}
