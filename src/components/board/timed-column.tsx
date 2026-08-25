@@ -45,17 +45,16 @@ export function TimedColumn({
   const items = useColumnItems(columnId);
 
   /**
-   * Measured minimum span, in minutes, per card. Only ever grows within a
-   * layout pass — a card that needs more room pushes its own slot open, and
-   * because growth is monotone the pack/measure cycle always settles instead of
-   * oscillating between one and two lanes.
+   * Measured minimum span, in minutes, per card. Grows *and* shrinks — a wider
+   * card (fewer lanes) always wraps less and becomes shorter, so a shrink after
+   * a lane reduction can never trigger the reverse and oscillate.
    */
   const [measured, setMeasured] = useState<Record<string, number>>({});
 
   const reportHeight = useCallback((itemId: string, height: number) => {
     const minutes = Math.ceil((height + CARD_GAP_PX) / PX_PER_MINUTE);
     setMeasured((current) =>
-      (current[itemId] ?? 0) >= minutes
+      current[itemId] === minutes
         ? current
         : { ...current, [itemId]: minutes },
     );
@@ -74,19 +73,57 @@ export function TimedColumn({
   const tray = useMemo(() => items.filter((item) => !item.time), [items]);
 
   const placements = useMemo(() => {
-    const inputs = scheduled.map((item) => {
-      const start = toAxisMinutes(item.time, item.dayOffset) ?? axis.start;
-      // The span is the larger of the stated duration and what the card
-      // actually measured — never a guessed constant.
+    // Sort by axis position so we can compute the gap to the next card.
+    const withStart = scheduled
+      .map((item) => ({
+        item,
+        start: toAxisMinutes(item.time, item.dayOffset) ?? axis.start,
+      }))
+      .sort((a, b) => a.start - b.start);
+
+    const inputs = withStart.map(({ item, start }, i) => {
+      // Gap to the next card's start time. A stale measured height (retained
+      // from a previous narrower lane width) must never push the span past
+      // the next card's start — that splits adjacent-time items into separate
+      // lanes when they should be full-width. Capping at the gap breaks the
+      // cycle: the card gets full width → ResizeObserver fires → fresh
+      // (shorter) measurement replaces the stale one.
+      // The stated durationMin is never capped — explicit durations that
+      // genuinely overlap should be lane-packed.
+      const nextStart =
+        i + 1 < withStart.length ? withStart[i + 1].start : Infinity;
+      const gap = nextStart - start;
+
+      const rawMeasured = measured[item.id] ?? 0;
+      const cappedMeasured =
+        gap > 0 ? Math.min(rawMeasured, gap) : rawMeasured;
+
       const span = Math.max(
         item.durationMin ?? 0,
-        measured[item.id] ?? 0,
+        cappedMeasured,
         MIN_SLOT_PX / PX_PER_MINUTE,
       );
       return { id: item.id, start, end: start + span };
     });
     return packLanes(inputs);
   }, [scheduled, measured, axis.start]);
+
+  /**
+   * The uncapped render span per card. Lane packing uses a gap-capped span so
+   * adjacent items stay full-width, but the *rendered card height* must use the
+   * full measured height so content is never clipped.
+   */
+  const renderSpans = useMemo(() => {
+    const spans: Record<string, number> = {};
+    for (const item of scheduled) {
+      spans[item.id] = Math.max(
+        item.durationMin ?? 0,
+        measured[item.id] ?? 0,
+        MIN_SLOT_PX / PX_PER_MINUTE,
+      );
+    }
+    return spans;
+  }, [scheduled, measured]);
 
   const { setNodeRef: setAxisRef, isOver: axisOver } = useDroppable({
     id: `axis:${columnId}`,
@@ -134,7 +171,7 @@ export function TimedColumn({
             <p className="m-auto px-2 text-center text-[11px] leading-snug text-faint">
               {trayOver
                 ? 'Drop to unschedule'
-                : 'No time yet — drop a card here to unschedule it'}
+                : 'No plans yet! Drop a card here to unschedule it'}
             </p>
           ) : (
             tray.map((item) => (
@@ -188,9 +225,16 @@ export function TimedColumn({
                 onContentChange={releaseHeight}
                 style={{
                   top: minutesToPx(placement.start - axis.start),
+                  // Use the uncapped render span so the card is never clipped.
+                  // The packing span (placement.end) may be capped at the gap
+                  // to avoid lane splitting, but the visual height must show
+                  // all content.
                   height: Math.max(
                     MIN_SLOT_PX,
-                    minutesToPx(placement.end - placement.start) - CARD_GAP_PX,
+                    minutesToPx(
+                      renderSpans[placement.id] ??
+                        placement.end - placement.start,
+                    ) - CARD_GAP_PX,
                   ),
                   left: `calc(${(lane * 100) / lanes}% + 6px)`,
                   width: `calc(${100 / lanes}% - 10px)`,

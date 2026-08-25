@@ -91,9 +91,12 @@ function PlanCardInner({
 
   // When the content shrinks — a tag removed, a shorter title — the remembered
   // span must be released so the slot can tighten back up.
-  const signature = item
-    ? `${item.title}|${item.tags.join(',')}|${item.time}|${item.durationMin}`
-    : '';
+  // Only fields that affect the card's *natural rendered height* belong here.
+  // time and durationMin affect the card's position/slot on the axis but not
+  // its content height, so changing them must NOT release the measurement —
+  // ResizeObserver won't re-fire (the content didn't resize) and the card
+  // stays clipped at the minimum slot height.
+  const signature = item ? `${item.title}|${item.tags.join(',')}` : '';
   useEffect(() => {
     onContentChange?.(itemId);
   }, [signature, onContentChange, itemId]);

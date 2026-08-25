@@ -129,6 +129,16 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Tailwind v4 dropped the automatic pointer cursor on interactive elements.
+     Restore it globally so every button, link and summary feels clickable. */
+  button:not(:disabled),
+  [role='button']:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
   /* 2px Periwinkle ring at 2px offset, per the accessibility spec. */
   :focus-visible {
     outline: 2px solid var(--brand);
@@ -183,6 +193,25 @@
   .scroll-none::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Skeleton shimmer — a gradient sweep instead of a flat pulse.             */
+/* Uses inset → subtle → inset so the highlight is the lighter surface     */
+/* tone, not a foreign colour. Works in both themes via the token mapping.  */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-inset) 0%,
+    var(--surface-subtle) 40%,
+    var(--surface-subtle) 60%,
+    var(--surface-inset) 100%
+  );
+  background-size: 250% 100%;
+  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
