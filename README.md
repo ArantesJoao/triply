@@ -36,8 +36,8 @@ Fill in:
 The Google client needs these entries:
 
 ```
-Authorised JavaScript origin:  http://localhost:3000
-Authorised redirect URI:       http://localhost:3000/api/auth/callback/google
+Authorised JavaScript origin:  http://localhost:3103
+Authorised redirect URI:       http://localhost:3103/api/auth/callback/google
 ```
 
 Add your production origin and callback alongside them when you deploy.
@@ -199,7 +199,7 @@ docker run -d --name triply-db \
 cp .env.example .env.test   # DATABASE_URL=postgresql://postgres:triply@localhost:5433/triply
 DATABASE_URL=... npx drizzle-kit push
 ENV_FILE=.env.test npm run seed
-ENV_FILE=.env.test npm run verify:axis -- http://localhost:3100
+ENV_FILE=.env.test npm run verify:axis -- http://localhost:3103
 ```
 
 Pointing `DATABASE_URL` at a non-Neon host selects the node-postgres driver

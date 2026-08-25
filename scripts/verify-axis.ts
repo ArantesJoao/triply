@@ -6,7 +6,7 @@
  * feedback", so it's asserted against a real rendered layout rather than
  * trusted to the geometry constants.
  *
- *   ENV_FILE=.env.test npx tsx scripts/verify-axis.ts http://localhost:3100
+ *   ENV_FILE=.env.test npx tsx scripts/verify-axis.ts http://localhost:3103
  *
  * Requires a dev server already running against a seeded database.
  */
@@ -18,7 +18,7 @@ import { chromium } from 'playwright';
 
 import { db, trips, users } from '../src/lib/db';
 
-const BASE = process.argv[2] ?? 'http://localhost:3100';
+const BASE = process.argv[2] ?? 'http://localhost:3103';
 const COOKIE = 'authjs.session-token';
 
 let failures = 0;
@@ -85,7 +85,11 @@ async function main() {
     timeout: 60_000,
   });
 
-  check('board page returns 200', response?.status() === 200, response?.status());
+  check(
+    'board page returns 200',
+    response?.status() === 200,
+    response?.status(),
+  );
   await page.waitForSelector('[data-axis-column]', { timeout: 30_000 });
   // Let measurement and lane packing settle.
   await page.waitForTimeout(2500);
@@ -139,7 +143,9 @@ async function main() {
     ]);
   }
 
-  const shared = [...byTime.entries()].filter(([, offsets]) => offsets.length > 1);
+  const shared = [...byTime.entries()].filter(
+    ([, offsets]) => offsets.length > 1,
+  );
   check(
     'some times appear in more than one column (a real comparison exists)',
     shared.length > 0,
@@ -168,13 +174,13 @@ async function main() {
       for (let j = i + 1; j < list.length; j += 1) {
         const a = list[i];
         const b = list[j];
-        const verticallyApart = a.bottom <= b.top + 0.5 || b.bottom <= a.top + 0.5;
-        const horizontallyApart = a.right <= b.left + 0.5 || b.right <= a.left + 0.5;
+        const verticallyApart =
+          a.bottom <= b.top + 0.5 || b.bottom <= a.top + 0.5;
+        const horizontallyApart =
+          a.right <= b.left + 0.5 || b.right <= a.left + 0.5;
         if (!verticallyApart && !horizontallyApart) {
           overlaps += 1;
-          console.log(
-            `       overlap in ${column}: ${a.time} and ${b.time}`,
-          );
+          console.log(`       overlap in ${column}: ${a.time} and ${b.time}`);
         }
       }
     }
@@ -182,11 +188,12 @@ async function main() {
   check('no card visually overlaps another', overlaps === 0, { overlaps });
 
   console.log('\nOther');
-  check('no console errors', errors.length === 0, errors.map((e) => e.slice(0, 120)).slice(0, 3));
   check(
-    'no hydration mismatch',
-    !errors.some((e) => /hydrat/i.test(e)),
+    'no console errors',
+    errors.length === 0,
+    errors.map((e) => e.slice(0, 120)).slice(0, 3),
   );
+  check('no hydration mismatch', !errors.some((e) => /hydrat/i.test(e)));
 
   await page.screenshot({
     path: 'axis-check.png',
@@ -197,7 +204,9 @@ async function main() {
   await browser.close();
 
   console.log(
-    failures === 0 ? '\nAxis checks passed.\n' : `\n${failures} check(s) failed.\n`,
+    failures === 0
+      ? '\nAxis checks passed.\n'
+      : `\n${failures} check(s) failed.\n`,
   );
   process.exit(failures === 0 ? 0 : 1);
 }
