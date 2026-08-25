@@ -12,7 +12,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
-  providers: [Google],
+  providers: [
+    Google({
+      // Lets a user row that already exists for an address (created by the
+      // seed script, or by an invite) adopt the Google account on first
+      // sign-in instead of failing with OAuthAccountNotLinked.
+      //
+      // Safe here specifically because Google is the only provider and it
+      // verifies email ownership — there is no unverified sign-up path an
+      // attacker could use to pre-claim someone's address. Adding a second
+      // provider means revisiting this.
+      allowDangerousEmailAccountLinking: true,
+    }),
+  ],
   // JWT sessions keep page loads to a single round trip; the adapter is still
   // present so users/accounts persist and trip membership can reference them.
   session: { strategy: 'jwt' },

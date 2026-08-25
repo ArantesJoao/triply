@@ -1,26 +1,195 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+/*
+ * Dark mode is driven by a class on <html> so the in-app toggle can override
+ * the OS preference, rather than Tailwind's default media-query-only variant.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* --------------------------------------------------------------------- *
+ * Semantic tokens. Components reference these, never raw hex, so the two
+ * themes stay in step — dark mode is a first-class theme here, not a filter
+ * applied to a light design.
+ * --------------------------------------------------------------------- */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --surface-page: #fafaf8; /* Warm Off-White */
+  --surface-card: #ffffff;
+  --surface-subtle: #f5f6f9;
+  --surface-raised: #ffffff;
+  --surface-inset: #f1f2f7;
+
+  --text-primary: #0f1230; /* Indigo — replaces pure black */
+  --text-secondary: #5f637a;
+  --text-tertiary: #8a8fa3;
+  --text-inverse: #ffffff;
+
+  --border-default: #eceef3; /* Cool Gray */
+  --border-strong: #d9dce5;
+
+  --brand: #6366f1; /* Periwinkle */
+  --brand-hover: #5457e0;
+  --brand-active: #4145c4;
+  --brand-soft: #e6e9ff; /* Pale Periwinkle */
+  --brand-on-soft: #4145c4;
+  --brand-contrast: #ffffff;
+
+  --danger: #c2402a;
+  --danger-soft: #fdf1ee;
+  --danger-border: #f3cfc8;
+
+  --shadow-1: 0 1px 2px rgba(15, 18, 48, 0.05);
+  --shadow-2: 0 12px 28px rgba(15, 18, 48, 0.16);
+}
+
+.dark {
+  --surface-page: #0f1230;
+  --surface-card: #171a38;
+  --surface-subtle: #141733;
+  --surface-raised: #1d2042;
+  --surface-inset: #10132f;
+
+  --text-primary: #f8f8fb;
+  --text-secondary: #b8bcd0;
+  --text-tertiary: #8a8fa3;
+  --text-inverse: #0f1230;
+
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --brand: #7b7ef7;
+  --brand-hover: #8d90ff;
+  --brand-active: #a5a7ff;
+  --brand-soft: rgba(99, 102, 241, 0.16);
+  --brand-on-soft: #b9bbff;
+  --brand-contrast: #0f1230;
+
+  --danger: #ff9a86;
+  --danger-soft: rgba(194, 64, 42, 0.16);
+  --danger-border: rgba(255, 154, 134, 0.28);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 12px 28px rgba(0, 0, 0, 0.45);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-page: var(--surface-page);
+  --color-card: var(--surface-card);
+  --color-subtle: var(--surface-subtle);
+  --color-raised: var(--surface-raised);
+  --color-inset: var(--surface-inset);
+
+  --color-ink: var(--text-primary);
+  --color-muted: var(--text-secondary);
+  --color-faint: var(--text-tertiary);
+  --color-inverse: var(--text-inverse);
+
+  --color-line: var(--border-default);
+  --color-line-strong: var(--border-strong);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-active: var(--brand-active);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-on-soft: var(--brand-on-soft);
+  --color-brand-contrast: var(--brand-contrast);
+
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-border: var(--danger-border);
+
+  --font-display: 'Satoshi', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* 12px is the general-purpose radius; 16px is the Plan Card radius. */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --shadow-card: var(--shadow-1);
+  --shadow-float: var(--shadow-2);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--surface-page);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 2px Periwinkle ring at 2px offset, per the accessibility spec. */
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  input,
+  textarea,
+  button,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  ::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  /* Native time pickers render a dark glyph that disappears in dark mode. */
+  .dark input[type='time']::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.6);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  /* Slim scrollbars — the board has a lot of scroll containers. */
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  .scroll-slim::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 999px;
+  }
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* Hides the bar but keeps the scrolling, for the mobile day rail. */
+  .scroll-none {
+    scrollbar-width: none;
+  }
+  .scroll-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -11,42 +11,39 @@ if (typeof globalThis.WebSocket === 'undefined') {
   neonConfig.webSocketConstructor = ws;
 }
 
+/**
+ * A syntactically valid stand-in used when DATABASE_URL is absent.
+ *
+ * The Drizzle client has to be a real instance at module scope — the Auth.js
+ * adapter inspects its prototype to work out the dialect, so it cannot be
+ * wrapped in a lazy proxy. Constructing a Pool does not open a connection, so
+ * this keeps `next build` (which imports every route to collect page data)
+ * working on a machine with no database configured, and fails with a clear
+ * message only if a query is actually attempted.
+ */
+const PLACEHOLDER = 'postgresql://unset:unset@localhost:5432/unset';
+
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString && process.env.NODE_ENV !== 'production') {
+  console.warn(
+    '[trip.ly] DATABASE_URL is not set — copy .env.example to .env.local and paste your Neon connection string.',
+  );
+}
+
 declare global {
-  // eslint-disable-next-line no-var
   var __triplyPool: Pool | undefined;
 }
 
-function getPool(): Pool {
-  const url = process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error(
-      'DATABASE_URL is not set. Copy .env.example to .env.local and paste your Neon connection string.',
-    );
-  }
-  // Reuse the pool across hot reloads in dev, and across warm invocations in
-  // serverless, instead of opening a socket per request.
-  if (!globalThis.__triplyPool) {
-    globalThis.__triplyPool = new Pool({ connectionString: url });
-  }
-  return globalThis.__triplyPool;
-}
+// Reuse the pool across hot reloads in dev, and across warm invocations in
+// serverless, instead of opening a socket per request.
+const pool =
+  globalThis.__triplyPool ??
+  new Pool({ connectionString: connectionString || PLACEHOLDER });
 
-let cached: ReturnType<typeof drizzle<typeof schema>> | undefined;
+if (process.env.NODE_ENV !== 'production') globalThis.__triplyPool = pool;
 
-/**
- * Lazily-constructed Drizzle client. Lazy so that importing this module (which
- * many route files do transitively) doesn't throw at build time when
- * DATABASE_URL is absent.
- */
-export const db = new Proxy({} as ReturnType<typeof drizzle<typeof schema>>, {
-  get(_target, prop) {
-    if (!cached) cached = drizzle(getPool(), { schema });
-    const value = Reflect.get(cached, prop);
-    // Bind to the real client, never the proxy, so Drizzle's internals don't
-    // re-enter this trap while resolving `this`.
-    return typeof value === 'function' ? value.bind(cached) : value;
-  },
-});
+export const db = drizzle(pool, { schema });
 
 export { schema };
 export * from './schema';
