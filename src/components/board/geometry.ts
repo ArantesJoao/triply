@@ -7,8 +7,16 @@
  * contents it would push that column's axis down and break the alignment.
  */
 
-/** Vertical scale of the axis. */
-export const PX_PER_HOUR = 64;
+/**
+ * Vertical scale of the axis.
+ *
+ * Chosen so a card with a two-line title and a tags row occupies rather less
+ * than the 45 minutes that separates most stops on a real itinerary — which
+ * keeps the common case to a single lane. Lane packing still guarantees no
+ * overlap when stops genuinely collide; this only decides how often that has
+ * to happen.
+ */
+export const PX_PER_HOUR = 128;
 export const PX_PER_MINUTE = PX_PER_HOUR / 60;
 
 /** Fixed — identical in every timed column. */
@@ -25,12 +33,6 @@ export const LIST_COLUMN_PX = 280;
 
 /** Breathing room between stacked cards, in px. */
 export const CARD_GAP_PX = 6;
-
-/**
- * Cap on side-by-side lanes. Beyond this, cards get too narrow to read; the
- * packer keeps them non-overlapping either way.
- */
-export const MAX_LANES = 3;
 
 export const minutesToPx = (minutes: number) => minutes * PX_PER_MINUTE;
 export const pxToMinutes = (px: number) => px / PX_PER_MINUTE;

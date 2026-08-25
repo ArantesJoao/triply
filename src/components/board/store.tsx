@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 
-import type { BoardDTO, ItemDTO } from '@/server/board';
+import type { BoardDTO, ItemDTO } from '@/lib/board-model';
 
 /* ------------------------------------------------------------------ *
  * Normalised state.

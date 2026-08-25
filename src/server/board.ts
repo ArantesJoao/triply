@@ -8,56 +8,22 @@ import {
   slugify,
   uniqueSlug,
 } from '@/lib/ids';
+import { BACKLOG_KEY } from '@/lib/board-model';
+import type { BoardDTO, CityDTO, ColumnDTO, ItemDTO } from '@/lib/board-model';
 import { normaliseTime } from '@/lib/time';
 
 import { badRequest, conflict, notFound } from './errors';
 import { touchTrip } from './trips';
 
-/** The column key that may never be deleted, in any city (build spec §2). */
-export const BACKLOG_KEY = 'backlog';
-
-/* ------------------------------------------------------------------ *
- * Shapes returned to the client and to API callers
- * ------------------------------------------------------------------ */
-
-export type ItemDTO = {
-  id: string;
-  title: string;
-  time: string | null;
-  dayOffset: number;
-  durationMin: number | null;
-  blurb: string;
-  tags: string[];
-  position: number;
-};
-
-export type ColumnDTO = {
-  id: string;
-  key: string;
-  title: string;
-  timed: boolean;
-  date: string | null;
-  position: number;
-  items: ItemDTO[];
-};
-
-export type CityDTO = {
-  id: string;
-  key: string;
-  title: string;
-  position: number;
-  columns: ColumnDTO[];
-};
-
-export type BoardDTO = {
-  id: string;
-  title: string;
-  activeCityId: string | null;
-  shareToken: string;
-  revision: number;
-  updatedAt: string;
-  cities: CityDTO[];
-};
+// Shapes and the reserved backlog key live in a client-safe module so browser
+// code can import them without pulling in the database driver.
+export {
+  BACKLOG_KEY,
+  type BoardDTO,
+  type CityDTO,
+  type ColumnDTO,
+  type ItemDTO,
+} from '@/lib/board-model';
 
 /* ------------------------------------------------------------------ *
  * Reads

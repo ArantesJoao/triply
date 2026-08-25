@@ -266,6 +266,10 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
 
   return (
     <DndContext
+      // Explicit id, or dnd-kit derives its aria-describedby ids from a
+      // module-level counter that drifts between the server and client renders
+      // and trips a hydration mismatch.
+      id="triply-board"
       sensors={sensors}
       collisionDetection={pointerWithin}
       onDragStart={onDragStart}

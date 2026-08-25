@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import type { BoardDTO } from '@/server/board';
+import type { BoardDTO } from '@/lib/board-model';
 
 import { BoardCanvas } from './board-canvas';
 import { BoardHeader } from './board-header';

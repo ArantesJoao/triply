@@ -31,7 +31,13 @@ function useMeasuredHeight(
 
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        onMeasure(entry.contentRect.height);
+        // borderBoxSize, NOT contentRect: contentRect excludes padding, which
+        // measured every card short by its vertical padding and clipped the
+        // bottom of the tags row.
+        const height =
+          entry.borderBoxSize?.[0]?.blockSize ??
+          (entry.target as HTMLElement).offsetHeight;
+        onMeasure(height);
       }
     });
     observer.observe(node);
@@ -105,6 +111,13 @@ function PlanCardInner({
       ref={setNodeRef}
       style={dragStyle}
       data-dragging={isDragging || undefined}
+      // Layout hook for scripts/verify-axis.ts, which asserts that a given
+      // time lands at the same Y in every timed column.
+      data-item-time={
+        variant === 'axis' && item.time
+          ? `${item.time}+${item.dayOffset}`
+          : undefined
+      }
       className={cn(
         'group/card overflow-hidden border border-line bg-card',
         'transition-[border-color,box-shadow,opacity] duration-150 ease-out',

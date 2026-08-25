@@ -75,6 +75,7 @@ npm run dev
 | `npm run build` | Production build |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run verify` | Time and lane-packing checks (see below) |
+| `npm run verify:axis` | Browser check of the shared axis (needs a running dev server) |
 | `npm run db:generate` | Generate a SQL migration from the schema |
 | `npm run db:push` | Push the schema directly (fastest for dev) |
 | `npm run db:migrate` | Apply migrations |
@@ -177,8 +178,32 @@ and `board-canvas.tsx`:
 - the column header and unscheduled tray are **fixed heights**, so a tray with
   four cards in it can't push its own column's axis down.
 
-Run `npm run verify` to check the time and packing invariants, including 2000
-randomised layouts asserting no two cards ever share a lane and a moment.
+Two checks guard this.
+
+`npm run verify` covers the pure logic: cross-midnight ordering, axis-window
+growth, and 2000 randomised layouts asserting no two cards ever share a lane
+and a moment.
+
+`npm run verify:axis` drives a real browser against a running dev server and
+asserts the rendered result — that every axis starts at the same Y and is the
+same height, that each wall-clock time appearing in several columns sits at an
+identical offset in all of them, that no card's box intersects another's, and
+that the page hydrates without a mismatch. It signs in by minting the same JWT
+session cookie Auth.js would issue, so no Google round trip is needed.
+
+```bash
+docker run -d --name triply-db \
+  -e POSTGRES_PASSWORD=triply -e POSTGRES_DB=triply \
+  -p 5433:5432 postgres:16-alpine
+
+cp .env.example .env.test   # DATABASE_URL=postgresql://postgres:triply@localhost:5433/triply
+DATABASE_URL=... npx drizzle-kit push
+ENV_FILE=.env.test npm run seed
+ENV_FILE=.env.test npm run verify:axis -- http://localhost:3100
+```
+
+Pointing `DATABASE_URL` at a non-Neon host selects the node-postgres driver
+automatically, so this needs no code changes.
 
 ## Multi-user
 

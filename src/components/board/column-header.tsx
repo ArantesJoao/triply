@@ -9,7 +9,7 @@ import { InlineText } from '@/components/ui/inline-text';
 import { Menu } from '@/components/ui/menu';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
-import { BACKLOG_KEY } from '@/server/board';
+import { BACKLOG_KEY } from '@/lib/board-model';
 
 import { COLUMN_HEADER_PX } from './geometry';
 import { useColumn, useStore } from './store';

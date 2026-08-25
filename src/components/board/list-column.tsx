@@ -7,10 +7,15 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BacklogIllustration, EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/cn';
-import { BACKLOG_KEY } from '@/server/board';
+import { BACKLOG_KEY } from '@/lib/board-model';
 
 import { ColumnHeader } from './column-header';
-import { COLUMN_HEADER_PX, TRAY_PX, minutesToPx } from './geometry';
+import {
+  AXIS_GUTTER_PX,
+  COLUMN_HEADER_PX,
+  TRAY_PX,
+  minutesToPx,
+} from './geometry';
 import { PlanCard } from './plan-card';
 import { useColumn, useColumnItems } from './store';
 
@@ -142,7 +147,10 @@ export function AxisGutter({
   }
 
   return (
-    <div className="sticky left-0 z-20 shrink-0 bg-page/95 backdrop-blur-sm">
+    <div
+      className="sticky left-0 z-20 shrink-0 bg-page/95 backdrop-blur-sm"
+      style={{ width: AXIS_GUTTER_PX }}
+    >
       {/* Spacers matching the column header and tray exactly, so the first
           hour label lines up with the top of every column's axis. */}
       <div style={{ height: COLUMN_HEADER_PX }} />

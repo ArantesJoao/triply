@@ -13,7 +13,6 @@ import { formatAxisLabel, toAxisMinutes } from '@/lib/time';
 import { ColumnHeader } from './column-header';
 import {
   CARD_GAP_PX,
-  MAX_LANES,
   PX_PER_MINUTE,
   TRAY_PX,
   minutesToPx,
@@ -173,8 +172,11 @@ export function TimedColumn({
           strategy={verticalListSortingStrategy}
         >
           {placements.map((placement) => {
-            const lanes = Math.min(placement.lanes, MAX_LANES);
-            const lane = placement.lane % lanes;
+            // Never fold lane N back onto lane N % cap — that was the
+            // prototype's trick and it puts two cards in the same place. The
+            // packer's lane count is authoritative; crowded hours get narrow
+            // cards rather than overlapping ones.
+            const { lanes, lane } = placement;
 
             return (
               <PlanCard
