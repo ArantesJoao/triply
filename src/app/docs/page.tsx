@@ -166,7 +166,7 @@ export default function DocsPage() {
             and send it as a bearer token. It carries your access — the trips
             you own or were invited to, and nothing more.
           </p>
-          <Code>{`curl https://your-host/api/trips \\
+          <Code>{`curl https://planwithtriply.com/api/trips \\
   -H "Authorization: Bearer triply_…"`}</Code>
         </Section>
 
@@ -238,7 +238,7 @@ Item   { id, title, time, dayOffset, durationMin, blurb, tags[], position }`}</C
         </Section>
 
         <Section title="Importing a day">
-          <Code>{`curl -X POST https://your-host/api/trips/TRIP_ID/import \\
+          <Code>{`curl -X POST https://planwithtriply.com/api/trips/TRIP_ID/import \\
   -H "Authorization: Bearer triply_…" \\
   -H "content-type: application/json" \\
   -d '{
@@ -268,9 +268,17 @@ Item   { id, title, time, dayOffset, durationMin, blurb, tags[], position }`}</C
           <p className="text-[13.5px] leading-relaxed text-muted">
             The same operations are exposed as MCP tools at{' '}
             <C>/api/mcp</C>, so Claude can edit the board directly instead of a
-            human relaying requests.
+            human relaying requests. Step-by-step setup, with the command ready
+            to copy, is on{' '}
+            <Link
+              href="/settings"
+              className="text-brand underline underline-offset-2"
+            >
+              Settings
+            </Link>
+            .
           </p>
-          <Code>{`claude mcp add --transport http triply https://your-host/api/mcp \\
+          <Code>{`claude mcp add --transport http triply https://planwithtriply.com/api/mcp \\
   --header "Authorization: Bearer triply_…"`}</Code>
           <p className="mt-3 text-[13px] leading-relaxed text-muted">
             Tools: <C>list_trips</C>, <C>get_board</C>, <C>get_city</C>,{' '}

@@ -4,10 +4,14 @@ A shared trip-planning board. Each city gets a tab; each city holds timed day
 columns that share **one** vertical time axis, plus plain lists like a Backlog.
 Built to be opened on a phone mid-trip.
 
+**Live at [planwithtriply.com](https://planwithtriply.com)** — hosted on Vercel,
+deployed from `main`.
+
 - **Stack** — Next.js 15 (App Router) · React 19 · Tailwind v4 · TypeScript
 - **Database** — NeonDB (serverless Postgres) via Drizzle ORM
 - **Auth** — Auth.js v5, Google sign-in only
 - **Drag & drop** — dnd-kit (mouse, touch and keyboard)
+- **Hosting** — Vercel, with Vercel Analytics
 - **Programmatic access** — a documented REST API and an MCP server
 
 ## Setup
@@ -40,7 +44,12 @@ Authorised JavaScript origin:  http://localhost:3103
 Authorised redirect URI:       http://localhost:3103/api/auth/callback/google
 ```
 
-Add your production origin and callback alongside them when you deploy.
+Production uses the same client, with the live origin listed alongside:
+
+```
+Authorised JavaScript origin:  https://planwithtriply.com
+Authorised redirect URI:       https://planwithtriply.com/api/auth/callback/google
+```
 
 ### 3. Create the schema
 
@@ -111,7 +120,7 @@ parent — so the API accepts `/cities/london` as well as an id. The key
 Full docs are served at **`/docs`**. Create a token under **Settings**, then:
 
 ```bash
-curl https://your-host/api/trips -H "Authorization: Bearer triply_…"
+curl https://planwithtriply.com/api/trips -H "Authorization: Bearer triply_…"
 ```
 
 A token carries exactly its owner's access — the trips they own or were
@@ -121,7 +130,7 @@ The headline endpoint is bulk import, because the normal case is "here's a day
 plan I already wrote, create it":
 
 ```bash
-curl -X POST https://your-host/api/trips/TRIP_ID/import \
+curl -X POST https://planwithtriply.com/api/trips/TRIP_ID/import \
   -H "Authorization: Bearer triply_…" \
   -H "content-type: application/json" \
   -d '{ "cities": [{ "title": "Barcelona", "columns": [ ... ] }] }'
@@ -130,12 +139,23 @@ curl -X POST https://your-host/api/trips/TRIP_ID/import \
 ### MCP
 
 The same operations are exposed as MCP tools, so Claude can edit the board
-directly:
+directly. Three steps:
 
-```bash
-claude mcp add --transport http triply https://your-host/api/mcp \
-  --header "Authorization: Bearer triply_…"
-```
+1. Open [planwithtriply.com/settings](https://planwithtriply.com/settings),
+   type a name under **API tokens**, and press **Create**. Copy the token — it
+   is shown once.
+2. Run this, with your own token in place of `triply_…`:
+
+   ```bash
+   claude mcp add --transport http triply https://planwithtriply.com/api/mcp \
+     --header "Authorization: Bearer triply_…"
+   ```
+
+3. Confirm with `claude mcp list` — `triply` should read as connected.
+
+Claude Desktop uses the same server: **Settings → Connectors → Add custom
+connector**, URL `https://planwithtriply.com/api/mcp`. The same instructions,
+with a copy button, are on `/settings` in the app.
 
 20 tools, including `list_trips`, `get_board`, `import_cities`, `move_item`,
 `set_tag_style` and the per-city `rename_tag` / `delete_tag` — full CRUD over
