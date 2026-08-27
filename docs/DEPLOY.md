@@ -4,9 +4,8 @@
 
 > Agents MUST NOT modify the Charter without explicit operator approval.
 
-- **`main` is the release branch.** Hosting is not wired up yet, but the moment
-  it is, every commit on `main` goes live. Treat it that way now, so the
-  convention is already in place on the day a deploy becomes automatic.
+- **`main` is the release branch.** Every commit on `main` deploys to
+  <https://planwithtriply.com>. A merge is a deploy — treat it that way.
 - **No direct pushes to `main`.** Every change lands through a pull request.
   This is the whole point of the convention: a deploy should be a deliberate,
   reviewable event, not a side effect of `git push`.
@@ -24,6 +23,14 @@
   before a PR is opened, and must still pass before it is merged.
 
 ## Current State
+
+**Production:** <https://planwithtriply.com>, hosted on Vercel and deployed
+from `main`. Every squashed commit on `main` triggers a production deploy; a PR
+gets a preview deploy on its own URL. Google OAuth is registered against
+`https://planwithtriply.com` (origin) and
+`https://planwithtriply.com/api/auth/callback/google` (redirect), so a change of
+domain needs an entry added in the Google console before the first sign-in on
+it.
 
 **Branch naming:** `trpl-<n>-<kebab-description>`, derived from the PR title
 (e.g. `TRPL-7` + "Fix cross-midnight card ordering" becomes

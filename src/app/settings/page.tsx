@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { auth, signOut } from '@/auth';
 import { Logo } from '@/components/brand/route-mark';
+import { McpSetup } from '@/components/mcp-setup';
 import { ThemeToggle } from '@/components/theme';
 import { TokensPanel } from '@/components/tokens-panel';
 import { listTokens } from '@/server/tokens';
@@ -87,6 +88,8 @@ export default async function SettingsPage() {
             createdAt: token.createdAt.toISOString(),
           }))}
         />
+
+        <McpSetup />
 
         <p className="text-center text-[13px] text-muted">
           Building against the API?{' '}
