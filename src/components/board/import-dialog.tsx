@@ -80,7 +80,7 @@ export function ImportDialog({
         tone: 'error',
         text:
           error instanceof SyntaxError
-            ? "That isn't valid JSON — check for a trailing comma."
+            ? "That isn't valid JSON. Check for a trailing comma."
             : error instanceof Error
               ? error.message
               : 'Import failed.',
@@ -95,7 +95,7 @@ export function ImportDialog({
       open={open}
       onClose={onClose}
       title="Import a plan"
-      description="Paste a city — or several — with their days and activities."
+      description="Paste a city (or several) with their days and activities."
       width="lg"
       footer={
         <>

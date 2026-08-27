@@ -34,7 +34,7 @@ export function ColumnHeader({
   return (
     <>
       <header
-        className="flex items-center gap-1.5 px-0.5"
+        className="sticky top-0 z-10 flex items-center gap-1.5 bg-page px-0.5"
         style={{ height: COLUMN_HEADER_PX }}
       >
         <span

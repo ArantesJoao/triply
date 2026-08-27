@@ -1,4 +1,5 @@
 import { RouteMark } from '@/components/brand/route-mark';
+import { TagChip } from '@/components/ui/chip';
 import { cn } from '@/lib/cn';
 
 /**
@@ -9,6 +10,7 @@ import { cn } from '@/lib/cn';
 export function EmptyState({
   title,
   body,
+  hint,
   action,
   secondary,
   illustration,
@@ -17,6 +19,8 @@ export function EmptyState({
 }: {
   title: string;
   body?: React.ReactNode;
+  /** Sits between the copy and the action — examples, not another sentence. */
+  hint?: React.ReactNode;
   action?: React.ReactNode;
   secondary?: React.ReactNode;
   illustration?: React.ReactNode;
@@ -54,6 +58,8 @@ export function EmptyState({
         )}
       </div>
 
+      {hint}
+
       {(action || secondary) && (
         <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
           {action}
@@ -65,110 +71,74 @@ export function EmptyState({
 }
 
 /**
- * A pale abstract cityscape behind the route — used for a city with nothing
- * planned. Deliberately generic: the brand must not depend on per-city artwork.
+ * The cityscape shown for a city with nothing planned yet.
+ *
+ * The asset is an alpha mask, not a picture, so the ink is whatever colour this
+ * element carries (`bg-brand` here). It re-tints itself with the theme, has no
+ * white background to hide in dark mode, and the rounded edge fade is part of
+ * the mask. See scripts/build-city-mask.mjs.
  */
 export function CityIllustration({ className }: { className?: string }) {
   return (
-    <div className={cn('relative h-28 w-56', className)}>
-      <svg
-        viewBox="0 0 224 112"
-        fill="none"
-        aria-hidden="true"
-        className="absolute inset-0 h-full w-full"
-      >
-        <g className="text-brand" opacity="0.13" fill="currentColor">
-          <rect x="14" y="62" width="26" height="46" rx="3" />
-          <rect x="46" y="44" width="20" height="64" rx="3" />
-          <path d="M72 108V54l14-12 14 12v54z" />
-          <rect x="106" y="66" width="30" height="42" rx="3" />
-          <rect x="142" y="38" width="16" height="70" rx="3" />
-          <circle cx="150" cy="30" r="7" />
-          <rect x="164" y="72" width="34" height="36" rx="3" />
-        </g>
-        <g className="text-brand" opacity="0.2" fill="currentColor">
-          <circle cx="30" cy="24" r="2" />
-          <circle cx="196" cy="18" r="2.5" />
-          <circle cx="120" cy="14" r="1.8" />
-        </g>
-        <line
-          x1="0"
-          y1="108"
-          x2="224"
-          y2="108"
-          className="text-brand"
-          stroke="currentColor"
-          strokeOpacity="0.22"
-          strokeWidth="1.5"
-        />
-      </svg>
-      <RouteMark
-        width={132}
-        className="absolute top-3 right-1"
-        animate
-      />
-    </div>
+    <div
+      aria-hidden="true"
+      className={cn(
+        'mask-city aspect-[3/2] bg-brand',
+        // The negative margin cancels the two levels of px-6 above it, so on a
+        // phone the illustration runs edge to edge instead of sitting inside
+        // the text's gutters. The margin box still matches the content box, so
+        // this cannot introduce horizontal scroll. The cap only applies from
+        // sm up, or it would claw back that edge-to-edge width on big phones.
+        '-mx-12 w-[calc(100%+6rem)] sm:max-w-sm',
+        className,
+      )}
+    />
   );
 }
 
-/** An open box with ideas floating out — the empty Backlog. */
+/**
+ * An open box with ideas floating out — the empty Backlog.
+ *
+ * Same treatment as `CityIllustration`: an alpha mask rather than a picture, so
+ * the element's own colour is the ink and the box, cards and route dots re-tint
+ * themselves with the theme. See scripts/build-backlog-mask.mjs.
+ */
 export function BacklogIllustration({ className }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 200 116"
-      fill="none"
+    <div
       aria-hidden="true"
-      className={cn('h-24 w-44', className)}
+      className={cn('mask-backlog aspect-square w-40 bg-brand', className)}
+    />
+  );
+}
+
+/**
+ * Three example tags under the empty-Backlog copy.
+ *
+ * They are real `TagChip`s resolving their own colour and icon from the tag
+ * name, so what the user sees here is exactly what their own tags will look
+ * like. Examples of the shape of a tag, not a taxonomy — trip.ly tags stay
+ * free-form, which is also why they are lowercase, as typed ones are.
+ */
+export function BacklogTagHint({
+  size = 'sm',
+  className,
+}: {
+  size?: 'sm' | 'md';
+  className?: string;
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        'flex flex-wrap items-center justify-center',
+        size === 'sm' ? 'gap-1' : 'gap-1.5',
+        className,
+      )}
     >
-      <g className="text-brand">
-        <path
-          d="M28 74l30-13 30 13-30 13z"
-          fill="currentColor"
-          opacity="0.18"
-        />
-        <path d="M28 74v18l30 13V87z" fill="currentColor" opacity="0.26" />
-        <path d="M88 74v18L58 105V87z" fill="currentColor" opacity="0.14" />
-
-        <g opacity="0.5">
-          <rect
-            x="74"
-            y="16"
-            width="34"
-            height="28"
-            rx="7"
-            fill="currentColor"
-            opacity="0.14"
-          />
-          <rect
-            x="116"
-            y="34"
-            width="34"
-            height="28"
-            rx="7"
-            fill="currentColor"
-            opacity="0.14"
-          />
-          <rect
-            x="150"
-            y="8"
-            width="34"
-            height="28"
-            rx="7"
-            fill="currentColor"
-            opacity="0.14"
-          />
-        </g>
-
-        <g fill="currentColor">
-          <circle cx="66" cy="60" r="2" opacity="0.5" />
-          <circle cx="78" cy="54" r="2.3" opacity="0.62" />
-          <circle cx="92" cy="52" r="2.6" opacity="0.74" />
-          <circle cx="106" cy="56" r="2.8" opacity="0.84" />
-          <circle cx="120" cy="52" r="3" opacity="0.92" />
-          <circle cx="136" cy="44" r="3.2" />
-          <circle cx="156" cy="34" r="5.5" />
-        </g>
-      </g>
-    </svg>
+      {['restaurants', 'landmarks', 'transit'].map((tag) => (
+        <TagChip key={tag} label={tag} size={size} />
+      ))}
+    </div>
   );
 }

@@ -56,7 +56,7 @@ const london: CityInput = {
         {
           title: 'Portobello Road Market',
           time: '09:00',
-          blurb: 'Antiques, food stalls, colourful streets (Beltra & João).',
+          blurb: 'Antiques, food stalls, colourful streets.',
           tags: ['market', 'shopping'],
         },
         {
@@ -96,10 +96,10 @@ const london: CityInput = {
           tags: ['shopping', 'landmark'],
         },
         {
-          title: 'Last work stretch (Gu & Rato)',
+          title: 'Last work stretch',
           time: '17:00',
           blurb:
-            'Their final business hours of the trip, then everyone regroups.',
+            'Final business hours for anyone still working, then everyone regroups.',
           tags: ['logistics'],
         },
         {

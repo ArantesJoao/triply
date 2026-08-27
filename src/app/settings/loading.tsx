@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, KeyRound, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 import { Logo } from '@/components/brand/route-mark';
@@ -6,8 +6,9 @@ import { ThemeToggle } from '@/components/theme';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
- * Instant shell for Settings. The header, nav and section headings are static;
- * only the user-specific data (avatar, email, tokens list) shimmers.
+ * Instant shell for Settings. The header, nav, section chrome and copy are all
+ * static, so they render as themselves; only the user-specific data (avatar,
+ * name, email, tokens list) shimmers.
  */
 export default function SettingsLoading() {
   return (
@@ -43,30 +44,51 @@ export default function SettingsLoading() {
               <Skeleton className="h-4 w-32 max-w-full" />
               <Skeleton className="mt-1.5 h-3.5 w-44 max-w-full" />
             </div>
-            <Skeleton className="h-9 w-20 rounded-xl" />
+            <Skeleton className="h-9 w-20 shrink-0 rounded-xl" />
           </div>
         </section>
 
-        {/* ── API tokens section ── */}
-        <section className="rounded-xl border border-line bg-card px-5 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="font-display text-base font-bold">API tokens</h2>
-              <Skeleton className="mt-1.5 h-3.5 w-56 max-w-full" />
-            </div>
-            <Skeleton className="h-9 w-28 rounded-[10px]" />
-          </div>
-          <div className="mt-4 divide-y divide-line">
-            {[0, 1].map((i) => (
-              <div key={i} className="flex items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="mt-1.5 h-3 w-20" />
-                </div>
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="size-7 rounded-[10px]" />
+        {/* ── API tokens section — mirrors TokensPanel ── */}
+        <section className="rounded-xl border border-line bg-card">
+          <header className="border-b border-line px-5 py-4">
+            <h2 className="flex items-center gap-2 font-display text-base font-bold">
+              <KeyRound size={17} className="text-brand" />
+              API tokens
+            </h2>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted">
+              For the REST API and the MCP server. A token acts with your access
+              — it can reach every trip you&apos;re a member of, and nothing
+              else.
+            </p>
+          </header>
+
+          <div className="flex flex-col gap-4 px-5 py-4">
+            {/* New-token row */}
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <span className="mb-2 block font-display text-[10px] font-medium tracking-[0.13em] text-faint uppercase opacity-50">
+                  New token
+                </span>
+                <div className="h-11 rounded-[11px] border border-line bg-subtle" />
               </div>
-            ))}
+              <span className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-brand px-4 text-sm font-medium text-brand-contrast opacity-50">
+                <Plus size={16} />
+                Create
+              </span>
+            </div>
+
+            {/* Token list */}
+            <div className="divide-y divide-line">
+              {[0, 1].map((i) => (
+                <div key={i} className="flex items-center gap-3 py-3">
+                  <div className="min-w-0 flex-1">
+                    <Skeleton className="h-3.5 w-28 max-w-full" />
+                    <Skeleton className="mt-1 h-3 w-40 max-w-full" />
+                  </div>
+                  <Skeleton className="size-7 shrink-0 rounded-[10px]" />
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

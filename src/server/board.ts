@@ -104,6 +104,8 @@ export async function getBoard(tripId: string): Promise<BoardDTO> {
     title: trip.title,
     activeCityId: trip.activeCityId,
     shareToken: trip.shareToken,
+    tagColors: (trip.tagColors as Record<string, number> | null) ?? {},
+    tagIcons: (trip.tagIcons as Record<string, string> | null) ?? {},
     revision: trip.revision,
     updatedAt: trip.updatedAt.toISOString(),
     cities: cityRows.map((city) => ({

@@ -84,7 +84,7 @@ export function ShareDialog({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      setError('Copying failed — select the link and copy it manually.');
+      setError('Copying failed. Select the link and copy it manually.');
     }
   };
 
@@ -164,7 +164,7 @@ export function ShareDialog({
               className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-muted transition-colors hover:text-ink"
             >
               <RefreshCw size={12} />
-              Reset link — the old one stops working
+              Reset link (the old one stops working)
             </button>
           )}
         </div>

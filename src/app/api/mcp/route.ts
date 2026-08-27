@@ -1,4 +1,14 @@
-import { requireActor, requireTripAccess, type Actor } from '@/server/access';
+import { ZodError, type ZodType, type z } from 'zod';
+
+import { toolArgs, type ToolName } from '@/lib/api/schemas';
+import { TAG_COLOR_NAMES, tagColorNameByIndex } from '@/lib/tag-colors';
+import { TAG_ICON_KEYS } from '@/lib/tag-icons';
+import {
+  requireActor,
+  requireTripAccess,
+  requireTripOwner,
+  type Actor,
+} from '@/server/access';
 import {
   createCity,
   createColumn,
@@ -15,7 +25,14 @@ import {
   updateItem,
 } from '@/server/board';
 import { ApiError } from '@/server/errors';
-import { createTrip, listTripsForUser, updateTrip } from '@/server/trips';
+import { deleteCityTag, renameCityTag } from '@/server/tags';
+import {
+  createTrip,
+  deleteTrip,
+  listTripsForUser,
+  setTagStyle,
+  updateTrip,
+} from '@/server/trips';
 
 /**
  * MCP server (JSON-RPC 2.0 over HTTP POST).
@@ -89,11 +106,26 @@ const citySchema = {
 } as const;
 
 type Tool = {
-  name: string;
+  name: ToolName;
+  description: string;
+  /** What the model reads. `schema` is what the server trusts. */
+  inputSchema: Record<string, unknown>;
+  schema: ZodType;
+  /** Receives arguments already parsed by `schema`. */
+  run: (args: never, actor: Actor) => Promise<unknown>;
+};
+
+/**
+ * Ties a tool's `run` to its own schema, so the handler is typed by what the
+ * validator actually produces rather than by hand-written `any`s.
+ */
+const defineTool = <S extends ZodType>(def: {
+  name: ToolName;
   description: string;
   inputSchema: Record<string, unknown>;
-  run: (args: Record<string, never>, actor: Actor) => Promise<unknown>;
-};
+  schema: S;
+  run: (args: z.output<S>, actor: Actor) => Promise<unknown>;
+}): Tool => def;
 
 /** Every tool below a trip scope checks membership first. */
 async function scoped(tripId: string, actor: Actor) {
@@ -101,26 +133,51 @@ async function scoped(tripId: string, actor: Actor) {
   return tripId;
 }
 
+/** As {@link scoped}, for the things only the trip's owner may do. */
+async function owned(tripId: string, actor: Actor) {
+  await requireTripOwner(tripId, actor);
+  return tripId;
+}
+
 const tools: Tool[] = [
-  {
+  defineTool({
     name: 'list_trips',
     description:
       'List every trip the authenticated user belongs to, with ids. Start here when you do not already know a tripId.',
     inputSchema: { type: 'object', properties: {} },
+    schema: toolArgs.list_trips,
     run: async (_args, actor) => listTripsForUser(actor.userId),
-  },
-  {
+  }),
+  defineTool({
     name: 'get_board',
     description:
-      'Read a whole trip as JSON — every city, column and item. Call this before adding to an existing day so you can see what is already there.',
+      'Read a whole trip as JSON — every city, column and item, with the id of each, plus the trip\'s per-tag colours and icons. Call this before changing anything so you can see what is already there.',
     inputSchema: {
       type: 'object',
       required: ['tripId'],
       properties: { tripId: str('Trip id from list_trips.') },
     },
-    run: async ({ tripId }, actor) => getBoard(await scoped(tripId, actor)),
-  },
-  {
+    schema: toolArgs.get_board,
+    run: async ({ tripId }, actor) => {
+      const board = await getBoard(await scoped(tripId, actor));
+
+      // Handing out the /join link is the owner's call, made in the app.
+      delete (board as Partial<typeof board>).shareToken;
+
+      return {
+        ...board,
+        // Stored as palette indices, reported as the names set_tag_style
+        // takes — "2" tells a reader nothing.
+        tagColors: Object.fromEntries(
+          Object.entries(board.tagColors).map(([tag, index]) => [
+            tag,
+            tagColorNameByIndex(index),
+          ]),
+        ),
+      };
+    },
+  }),
+  defineTool({
     name: 'get_city',
     description: 'Read a single city, by id or by handle (e.g. "london").',
     inputSchema: {
@@ -128,10 +185,11 @@ const tools: Tool[] = [
       required: ['tripId', 'city'],
       properties: { tripId: str('Trip id.'), city: str('City id or handle.') },
     },
+    schema: toolArgs.get_city,
     run: async ({ tripId, city }, actor) =>
       getCity(await scoped(tripId, actor), city),
-  },
-  {
+  }),
+  defineTool({
     name: 'create_trip',
     description: 'Create a new, empty trip owned by the authenticated user.',
     inputSchema: {
@@ -139,11 +197,115 @@ const tools: Tool[] = [
       required: ['title'],
       properties: { title: str('Trip name, e.g. "Europe, October 2026".') },
     },
+    schema: toolArgs.create_trip,
     run: async ({ title }, actor) => ({
       id: await createTrip(actor.userId, title),
     }),
-  },
-  {
+  }),
+  defineTool({
+    name: 'update_trip',
+    description:
+      'Rename a trip, and/or choose which city tab the board opens on.',
+    inputSchema: {
+      type: 'object',
+      required: ['tripId'],
+      properties: {
+        tripId: str('Trip id.'),
+        title: str('New trip name.'),
+        activeCityId: {
+          type: ['string', 'null'],
+          description:
+            'City id the board should open on. Must be a city of this trip.',
+        },
+      },
+    },
+    schema: toolArgs.update_trip,
+    run: async ({ tripId, title, activeCityId }, actor) => {
+      await updateTrip(await scoped(tripId, actor), { title, activeCityId });
+      return { ok: true };
+    },
+  }),
+  defineTool({
+    name: 'delete_trip',
+    description:
+      'Delete a trip and every city, day and activity on it. Owner only, and not reversible — ask the person first.',
+    inputSchema: {
+      type: 'object',
+      required: ['tripId', 'confirm'],
+      properties: {
+        tripId: str('Trip id.'),
+        confirm: bool('Must be true. Guards against an accidental call.'),
+      },
+    },
+    schema: toolArgs.delete_trip,
+    run: async ({ tripId }, actor) => {
+      await deleteTrip(await owned(tripId, actor));
+      return { ok: true };
+    },
+  }),
+  defineTool({
+    name: 'set_tag_style',
+    description:
+      'Pin the colour and/or icon a tag renders with everywhere on the board. Tags already get a colour from a hash of their name and an icon guessed from it, so use this only to override that. Pass null for either field to go back to the automatic choice.',
+    inputSchema: {
+      type: 'object',
+      required: ['tripId', 'tag'],
+      properties: {
+        tripId: str('Trip id.'),
+        tag: str('Tag name, e.g. "food". Matched lower-case.'),
+        color: {
+          type: ['string', 'null'],
+          enum: [...TAG_COLOR_NAMES, null],
+          description: 'Palette colour, or null for the automatic one.',
+        },
+        icon: {
+          type: ['string', 'null'],
+          enum: [...TAG_ICON_KEYS, '', null],
+          description:
+            'Icon key; "" for no icon at all; null for the automatic guess.',
+        },
+      },
+    },
+    schema: toolArgs.set_tag_style,
+    run: async ({ tripId, tag, color, icon }, actor) =>
+      setTagStyle(await scoped(tripId, actor), tag, { color, icon }),
+  }),
+  defineTool({
+    name: 'rename_tag',
+    description:
+      'Rename a tag on every card in one city. Tags are per-city, so this leaves the same tag in other cities alone. Fails if the city already has a card carrying the new name — pick a free name rather than merging two tags together. The tag keeps its colour and icon.',
+    inputSchema: {
+      type: 'object',
+      required: ['tripId', 'city', 'tag', 'name'],
+      properties: {
+        tripId: str('Trip id.'),
+        city: str('City id or handle.'),
+        tag: str('Current tag name, e.g. "food". Matched lower-case.'),
+        name: str('New tag name. Must not already be used in this city.'),
+      },
+    },
+    schema: toolArgs.rename_tag,
+    run: async ({ tripId, city, tag, name }, actor) =>
+      renameCityTag(await scoped(tripId, actor), city, tag, name),
+  }),
+  defineTool({
+    name: 'delete_tag',
+    description:
+      'Remove a tag from every card in one city. The cards themselves stay. Tags are per-city, so other cities keep theirs — and the tag\'s colour and icon are kept too as long as any of them still uses it.',
+    inputSchema: {
+      type: 'object',
+      required: ['tripId', 'city', 'tag'],
+      properties: {
+        tripId: str('Trip id.'),
+        city: str('City id or handle.'),
+        tag: str('Tag name, e.g. "food". Matched lower-case.'),
+      },
+    },
+    schema: toolArgs.delete_tag,
+    run: async ({ tripId, city, tag }, actor) =>
+      deleteCityTag(await scoped(tripId, actor), city, tag),
+  }),
+  defineTool({
     name: 'import_cities',
     description:
       'Bulk create: add one or more complete cities — with their day columns and every activity — in a single call. This is the preferred way to populate a trip from a plan someone has already written. Every city automatically gets a Backlog column if the payload omits one.',
@@ -158,14 +320,15 @@ const tools: Tool[] = [
         ),
       },
     },
+    schema: toolArgs.import_cities,
     run: async ({ tripId, cities, replace }, actor) => ({
       created: await importBoard(await scoped(tripId, actor), {
         cities,
         replace,
       }),
     }),
-  },
-  {
+  }),
+  defineTool({
     name: 'create_city',
     description:
       'Add one city. Pass `columns` to create its days and activities at the same time.',
@@ -174,11 +337,16 @@ const tools: Tool[] = [
       required: ['tripId', 'title'],
       properties: { tripId: str('Trip id.'), ...citySchema.properties },
     },
-    run: async ({ tripId, title, id, columns }, actor) => ({
-      id: await createCity(await scoped(tripId, actor), { title, key: id, columns }),
+    schema: toolArgs.create_city,
+    run: async ({ tripId, title, id, key, columns }, actor) => ({
+      id: await createCity(await scoped(tripId, actor), {
+        title,
+        key: key ?? id,
+        columns,
+      }),
     }),
-  },
-  {
+  }),
+  defineTool({
     name: 'update_city',
     description: 'Rename a city.',
     inputSchema: {
@@ -190,11 +358,12 @@ const tools: Tool[] = [
         title: str('New name.'),
       },
     },
+    schema: toolArgs.update_city,
     run: async ({ tripId, city, title }, actor) => ({
       id: await updateCity(await scoped(tripId, actor), city, { title }),
     }),
-  },
-  {
+  }),
+  defineTool({
     name: 'delete_city',
     description: 'Delete a city and everything in it. Not reversible.',
     inputSchema: {
@@ -202,25 +371,13 @@ const tools: Tool[] = [
       required: ['tripId', 'city'],
       properties: { tripId: str('Trip id.'), city: str('City id or handle.') },
     },
+    schema: toolArgs.delete_city,
     run: async ({ tripId, city }, actor) => {
       await deleteCity(await scoped(tripId, actor), city);
       return { ok: true };
     },
-  },
-  {
-    name: 'set_active_city',
-    description: 'Choose which city tab the board opens on.',
-    inputSchema: {
-      type: 'object',
-      required: ['tripId', 'cityId'],
-      properties: { tripId: str('Trip id.'), cityId: str('City id.') },
-    },
-    run: async ({ tripId, cityId }, actor) => {
-      await updateTrip(await scoped(tripId, actor), { activeCityId: cityId });
-      return { ok: true };
-    },
-  },
-  {
+  }),
+  defineTool({
     name: 'create_column',
     description:
       'Add a day (timed, with a clock axis) or a plain list to a city.',
@@ -233,17 +390,18 @@ const tools: Tool[] = [
         ...columnSchema.properties,
       },
     },
-    run: async ({ tripId, city, title, id, timed, date, items }, actor) => ({
+    schema: toolArgs.create_column,
+    run: async ({ tripId, city, title, id, key, timed, date, items }, actor) => ({
       id: await createColumn(await scoped(tripId, actor), city, {
         title,
-        key: id,
+        key: key ?? id,
         timed,
         date,
         items,
       }),
     }),
-  },
-  {
+  }),
+  defineTool({
     name: 'update_column',
     description: 'Rename a column, change its date, or switch timed/list mode.',
     inputSchema: {
@@ -257,6 +415,7 @@ const tools: Tool[] = [
         date: str('YYYY-MM-DD.'),
       },
     },
+    schema: toolArgs.update_column,
     run: async ({ tripId, column, title, timed, date }, actor) => ({
       id: await updateColumn(await scoped(tripId, actor), column, {
         title,
@@ -264,8 +423,8 @@ const tools: Tool[] = [
         date,
       }),
     }),
-  },
-  {
+  }),
+  defineTool({
     name: 'delete_column',
     description:
       'Delete a column and its items. The reserved "backlog" column cannot be deleted.',
@@ -274,12 +433,13 @@ const tools: Tool[] = [
       required: ['tripId', 'column'],
       properties: { tripId: str('Trip id.'), column: str('Column id or handle.') },
     },
+    schema: toolArgs.delete_column,
     run: async ({ tripId, column }, actor) => {
       await deleteColumn(await scoped(tripId, actor), column);
       return { ok: true };
     },
-  },
-  {
+  }),
+  defineTool({
     name: 'create_item',
     description: 'Add one activity to a column.',
     inputSchema: {
@@ -291,11 +451,12 @@ const tools: Tool[] = [
         ...itemProperties,
       },
     },
+    schema: toolArgs.create_item,
     run: async ({ tripId, column, ...input }, actor) => ({
       id: await createItem(await scoped(tripId, actor), column, input),
     }),
-  },
-  {
+  }),
+  defineTool({
     name: 'update_item',
     description:
       'Edit an activity. Send time: null to unschedule it into the tray.',
@@ -308,11 +469,12 @@ const tools: Tool[] = [
         ...itemProperties,
       },
     },
+    schema: toolArgs.update_item,
     run: async ({ tripId, itemId, ...patch }, actor) => ({
       id: await updateItem(await scoped(tripId, actor), itemId, patch),
     }),
-  },
-  {
+  }),
+  defineTool({
     name: 'move_item',
     description:
       'Move an activity to another column, optionally setting its time. Moving into a list column clears the time.',
@@ -333,6 +495,7 @@ const tools: Tool[] = [
         },
       },
     },
+    schema: toolArgs.move_item,
     run: async ({ tripId, itemId, columnId, time, dayOffset }, actor) => ({
       id: await moveItem(await scoped(tripId, actor), itemId, {
         columnId,
@@ -340,8 +503,8 @@ const tools: Tool[] = [
         dayOffset,
       }),
     }),
-  },
-  {
+  }),
+  defineTool({
     name: 'delete_item',
     description: 'Delete one activity.',
     inputSchema: {
@@ -349,11 +512,12 @@ const tools: Tool[] = [
       required: ['tripId', 'itemId'],
       properties: { tripId: str('Trip id.'), itemId: str('Item id.') },
     },
+    schema: toolArgs.delete_item,
     run: async ({ tripId, itemId }, actor) => {
       await deleteItem(await scoped(tripId, actor), itemId);
       return { ok: true };
     },
-  },
+  }),
 ];
 
 const toolByName = new Map(tools.map((tool) => [tool.name, tool]));
@@ -370,6 +534,26 @@ const rpcError = (
   message: string,
   data?: unknown,
 ) => ({ jsonrpc: '2.0' as const, id: id ?? null, error: { code, message, data } });
+
+/**
+ * Turns a thrown error into something the model can act on, or null when the
+ * failure is ours and its details shouldn't leave the server.
+ */
+function toolErrorMessage(error: unknown): string | null {
+  if (error instanceof ZodError) {
+    const issues = error.issues
+      .map((issue) => {
+        const path = issue.path.join('.');
+        return path ? `${path}: ${issue.message}` : issue.message;
+      })
+      .join('; ');
+    return `Those arguments are not valid — ${issues}`;
+  }
+
+  if (error instanceof ApiError) return error.message;
+
+  return null;
+}
 
 async function dispatch(request: JsonRpcRequest, actor: Actor) {
   const { method, params = {}, id } = request;
@@ -397,26 +581,25 @@ async function dispatch(request: JsonRpcRequest, actor: Actor) {
       });
 
     case 'tools/call': {
-      const name = params.name as string;
+      const name = params.name as ToolName;
       const tool = toolByName.get(name);
       if (!tool) return rpcError(id, -32602, `Unknown tool: ${name}`);
 
       try {
-        const args = (params.arguments ?? {}) as Record<string, never>;
-        const output = await tool.run(args, actor);
+        const args = tool.schema.parse(params.arguments ?? {});
+        const output = await tool.run(args as never, actor);
         return rpcResult(id, {
           content: [{ type: 'text', text: JSON.stringify(output, null, 2) }],
         });
       } catch (error) {
         // Tool failures come back as a result with isError, not a protocol
         // error, so the model can read the reason and correct itself.
-        const message =
-          error instanceof ApiError
-            ? error.message
-            : 'The tool call failed unexpectedly.';
-        if (!(error instanceof ApiError)) console.error('[mcp]', error);
+        const message = toolErrorMessage(error);
+        if (message === null) console.error('[mcp]', error);
         return rpcResult(id, {
-          content: [{ type: 'text', text: message }],
+          content: [
+            { type: 'text', text: message ?? 'The tool call failed unexpectedly.' },
+          ],
           isError: true,
         });
       }

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { TAG_COLOR_NAMES, TAG_PALETTE_SIZE } from '@/lib/tag-colors';
+import { TAG_ICON_KEYS } from '@/lib/tag-icons';
 import { normaliseTime } from '@/lib/time';
 
 /**
@@ -53,6 +55,12 @@ export const createTripBody = z.object({
 export const updateTripBody = z.object({
   title: z.string().min(1).max(200).optional(),
   activeCityId: z.string().nullable().optional(),
+  tagColors: z
+    .record(z.string(), z.int().min(0).max(TAG_PALETTE_SIZE - 1))
+    .optional(),
+  tagIcons: z
+    .record(z.string(), z.union([z.enum(TAG_ICON_KEYS), z.literal('')]))
+    .optional(),
 });
 
 export const updateCityBody = z.object({
@@ -98,6 +106,124 @@ export const createTokenBody = z.object({
   name: z.string().min(1).max(80),
 });
 
+export const tagStyleBody = z.object({
+  /** Palette name, or null to fall back to the deterministic hash colour. */
+  color: z.enum(TAG_COLOR_NAMES).nullable().optional(),
+  /** Icon key, `''` for no icon, or null to fall back to the keyword guess. */
+  icon: z
+    .union([z.enum(TAG_ICON_KEYS), z.literal('')])
+    .nullable()
+    .optional(),
+});
+
+/** Tags carry no id, so both the old and the new name travel in the body. */
+export const renameTagBody = z.object({
+  tag: z.string().min(1).max(60),
+  name: z.string().min(1).max(60),
+});
+
 export type CityInputBody = z.infer<typeof cityInput>;
 export type ColumnInputBody = z.infer<typeof columnInput>;
 export type ItemInputBody = z.infer<typeof itemInput>;
+export type TagStyleBody = z.infer<typeof tagStyleBody>;
+
+/* ------------------------------------------------------------------ *
+ * MCP tool arguments
+ *
+ * The JSON Schemas in the MCP route are what the *model* reads; these are
+ * what the server trusts. Without them tool arguments reach the service
+ * layer unvalidated, and a bad time like "99:99" normalises to null —
+ * silently unscheduling a card, which an agent has no way to notice.
+ *
+ * Strict objects: an undeclared argument is a mistake worth surfacing, not
+ * something to drop on the floor. The nested item/column/city payloads stay
+ * lenient, since the REST API shares them.
+ * ------------------------------------------------------------------ */
+
+/** An id, or a human-readable handle like "london" / "backlog". */
+const ref = z.string().min(1).max(80);
+const tripId = z.string().min(1).max(80);
+
+export const toolArgs = {
+  list_trips: z.strictObject({}),
+
+  get_board: z.strictObject({ tripId }),
+
+  get_city: z.strictObject({ tripId, city: ref }),
+
+  create_trip: z.strictObject({ title: z.string().min(1).max(200) }),
+
+  update_trip: z.strictObject({
+    tripId,
+    title: z.string().min(1).max(200).optional(),
+    activeCityId: z.string().max(80).nullable().optional(),
+  }),
+
+  delete_trip: z.strictObject({
+    tripId,
+    confirm: z.literal(true, {
+      error: 'Pass confirm: true to delete a trip and everything on it.',
+    }),
+  }),
+
+  set_tag_style: z.strictObject({
+    tripId,
+    tag: z.string().min(1).max(60),
+    ...tagStyleBody.shape,
+  }),
+
+  rename_tag: z.strictObject({ tripId, city: ref, ...renameTagBody.shape }),
+
+  delete_tag: z.strictObject({
+    tripId,
+    city: ref,
+    tag: z.string().min(1).max(60),
+  }),
+
+  import_cities: z.strictObject({ tripId, ...importBoardBody.shape }),
+
+  create_city: z.strictObject({ tripId, ...cityInput.shape }),
+
+  update_city: z.strictObject({
+    tripId,
+    city: ref,
+    title: z.string().min(1).max(200),
+  }),
+
+  delete_city: z.strictObject({ tripId, city: ref }),
+
+  create_column: z.strictObject({ tripId, city: ref, ...columnInput.shape }),
+
+  update_column: z.strictObject({
+    tripId,
+    column: ref,
+    title: z.string().min(1).max(200).optional(),
+    timed: z.boolean().optional(),
+    date: z.iso.date().nullable().optional(),
+  }),
+
+  delete_column: z.strictObject({ tripId, column: ref }),
+
+  create_item: z.strictObject({ tripId, column: ref, ...itemInput.shape }),
+
+  update_item: z.strictObject({
+    tripId,
+    itemId: z.string().min(1).max(80),
+    ...itemInput.shape,
+  }),
+
+  move_item: z.strictObject({
+    tripId,
+    itemId: z.string().min(1).max(80),
+    columnId: ref,
+    time: timeString.nullable().optional(),
+    dayOffset: z.int().min(0).max(6).optional(),
+  }),
+
+  delete_item: z.strictObject({
+    tripId,
+    itemId: z.string().min(1).max(80),
+  }),
+} as const;
+
+export type ToolName = keyof typeof toolArgs;

@@ -3,6 +3,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -82,6 +83,17 @@ export const trips = pgTable('trip', {
   createdBy: text('created_by').references(() => users.id, {
     onDelete: 'set null',
   }),
+  /**
+   * Per-tag colour overrides: `{ [tagName]: paletteIndex }`.
+   * Tags not in the map fall back to the deterministic hash colour.
+   */
+  tagColors: jsonb('tag_colors').$type<Record<string, number>>().default({}),
+  /**
+   * Per-tag icon overrides: `{ [tagName]: iconKey }`, keys from
+   * `TAG_ICON_KEYS`. Tags not in the map fall back to a keyword guess on the
+   * tag name; an empty-string value means "no icon".
+   */
+  tagIcons: jsonb('tag_icons').$type<Record<string, string>>().default({}),
   /** Bumped on every mutation; clients poll this to detect other people's edits. */
   revision: integer('revision').notNull().default(1),
   createdAt: timestamp('created_at', { withTimezone: true })

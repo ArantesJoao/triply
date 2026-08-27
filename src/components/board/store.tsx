@@ -43,6 +43,10 @@ export type TripRecord = {
   title: string;
   activeCityId: string | null;
   shareToken: string;
+  /** Per-tag colour overrides: `{ [tagName]: paletteIndex }`. */
+  tagColors: Record<string, number>;
+  /** Per-tag icon overrides: `{ [tagName]: iconKey }`; `''` means no icon. */
+  tagIcons: Record<string, string>;
   revision: number;
   isOwner: boolean;
 };
@@ -99,6 +103,8 @@ export function normalise(
       title: board.title,
       activeCityId: board.activeCityId ?? board.cities[0]?.id ?? null,
       shareToken: board.shareToken,
+      tagColors: board.tagColors ?? {},
+      tagIcons: board.tagIcons ?? {},
       revision: board.revision,
       isOwner: board.isOwner ?? false,
     },
@@ -123,6 +129,25 @@ export class BoardStore {
   /** Outstanding mutations — polling stands down while this is non-zero. */
   private inFlight = 0;
 
+  /**
+   * Temp-to-real ID redirects. When a new card is created optimistically with a
+   * temporary ID, `useItem(tempId)` keeps working after the server assigns the
+   * real ID by following this map.
+   */
+  private _redirects = new Map<string, string>();
+
+  /**
+   * Promises that resolve to the real server ID once a temp item is persisted.
+   * Used by mutation methods so they can wait for the real ID before hitting
+   * the API — this avoids a 404 when the user edits a card faster than the
+   * create request completes.
+   */
+  private _pendingIds = new Map<string, Promise<string>>();
+  private _resolvePendingId = new Map<
+    string,
+    { resolve: (id: string) => void; reject: (reason: unknown) => void }
+  >();
+
   constructor(initial: BoardState) {
     this.state = initial;
   }
@@ -135,6 +160,16 @@ export class BoardStore {
   };
 
   getState = () => this.state;
+
+  /** Follow temp→real redirects so callers holding a stale temp ID still work. */
+  resolveId = (id: string) => this._redirects.get(id) ?? id;
+
+  /** Waits for the real server ID if `id` is a temp that's still in flight. */
+  private async awaitRealId(id: string): Promise<string> {
+    const pending = this._pendingIds.get(id);
+    if (pending) return pending;
+    return this._redirects.get(id) ?? id;
+  }
 
   subscribeStatus = (listener: Listener) => {
     this.statusListeners.add(listener);
@@ -228,6 +263,130 @@ export class BoardStore {
     );
   }
 
+  setTagColor(tag: string, colorIndex: number) {
+    const tagColors = { ...this.state.trip.tagColors, [tag]: colorIndex };
+    void this.commit(
+      (state) => ({ ...state, trip: { ...state.trip, tagColors } }),
+      () =>
+        request(this.base, {
+          method: 'PATCH',
+          body: JSON.stringify({ tagColors }),
+        }),
+      'set tag colour',
+    );
+  }
+
+  /**
+   * Pins a tag's icon. Pass `''` to suppress the keyword-guessed icon, or
+   * `null` to drop the override entirely and fall back to the guess.
+   */
+  setTagIcon(tag: string, icon: string | null) {
+    const tagIcons = { ...this.state.trip.tagIcons };
+    if (icon === null) delete tagIcons[tag];
+    else tagIcons[tag] = icon;
+
+    void this.commit(
+      (state) => ({ ...state, trip: { ...state.trip, tagIcons } }),
+      () =>
+        request(this.base, {
+          method: 'PATCH',
+          body: JSON.stringify({ tagIcons }),
+        }),
+      'set tag icon',
+    );
+  }
+
+  /**
+   * Rewrites one tag across a city's cards — `next === null` drops it. Cards
+   * that don't carry the tag are left as-is, identity included, so renaming a
+   * tag used by three cards doesn't re-render the other ninety.
+   */
+  private retagCity(
+    state: BoardState,
+    cityId: string,
+    tag: string,
+    next: string | null,
+  ): BoardState {
+    const city = state.cities[cityId];
+    if (!city) return state;
+
+    let items = state.items;
+    for (const columnId of city.columnIds) {
+      for (const itemId of state.columns[columnId]?.itemIds ?? []) {
+        const item = items[itemId];
+        if (!item?.tags.includes(tag)) continue;
+
+        const tags =
+          next === null
+            ? item.tags.filter((existing) => existing !== tag)
+            : // A card already carrying the destination tag would end up with
+              // it twice, so dedupe rather than map blindly.
+              Array.from(
+                new Set(
+                  item.tags.map((existing) =>
+                    existing === tag ? next : existing,
+                  ),
+                ),
+              );
+
+        if (items === state.items) items = { ...state.items };
+        items[itemId] = { ...item, tags };
+      }
+    }
+
+    return items === state.items ? state : { ...state, items };
+  }
+
+  /**
+   * Renames a tag on every card in one city. Tag styling is trip-wide but tag
+   * *management* is per-city, so the same word elsewhere in the trip is left
+   * alone.
+   */
+  renameTag(cityId: string, tag: string, name: string) {
+    // Tags are stored lowercase and trimmed; compare after normalising or a
+    // stray capital reads as a rename and costs a pointless round trip.
+    const next = name.trim().toLowerCase();
+    if (!next || next === tag) return;
+
+    const settled = this.commit(
+      (state) => this.retagCity(state, cityId, tag, next),
+      () =>
+        request(`${this.base}/cities/${cityId}/tags`, {
+          method: 'PATCH',
+          body: JSON.stringify({ tag, name: next }),
+        }),
+      'rename the tag',
+    );
+
+    this.pullTagStyles(settled);
+  }
+
+  /** Removes a tag from every card in one city; other cities keep theirs. */
+  deleteTag(cityId: string, tag: string) {
+    const settled = this.commit(
+      (state) => this.retagCity(state, cityId, tag, null),
+      () =>
+        request(
+          `${this.base}/cities/${cityId}/tags?tag=${encodeURIComponent(tag)}`,
+          { method: 'DELETE' },
+        ),
+      'delete the tag',
+    );
+
+    this.pullTagStyles(settled);
+  }
+
+  /**
+   * A tag write also moves the trip's tagColors/tagIcons entries server-side,
+   * which the optimistic apply can't predict, so pull a fresh board once the
+   * write settles. Deliberately chained off the commit rather than run inside
+   * `persist`: a refetch that fails must not roll back a change the server has
+   * already accepted.
+   */
+  private pullTagStyles(settled: Promise<void>) {
+    void settled.then(() => this.refetch()).catch(() => {});
+  }
+
   renameTrip(title: string) {
     void this.commit(
       (state) => ({ ...state, trip: { ...state.trip, title } }),
@@ -315,12 +474,18 @@ export class BoardStore {
     );
   }
 
-  async addColumn(cityId: string, title: string, timed: boolean) {
+  async addColumn(
+    cityId: string,
+    title: string,
+    timed: boolean,
+    /** `YYYY-MM-DD` for a timed day; null for a plain list. */
+    date: string | null = null,
+  ) {
     try {
       this.setStatus({ kind: 'saving' });
       const { id } = await request<{ id: string }>(
         `${this.base}/cities/${cityId}/columns`,
-        { method: 'POST', body: JSON.stringify({ title, timed }) },
+        { method: 'POST', body: JSON.stringify({ title, timed, date }) },
       );
       await this.refetch();
       this.setStatus({ kind: 'saved', at: Date.now() });
@@ -330,7 +495,7 @@ export class BoardStore {
         kind: 'error',
         message:
           error instanceof Error ? error.message : 'Could not add the column.',
-        retry: () => void this.addColumn(cityId, title, timed),
+        retry: () => void this.addColumn(cityId, title, timed, date),
       });
       return null;
     }
@@ -385,8 +550,12 @@ export class BoardStore {
     );
   }
 
-  /** Creates a blank card; the caller focuses its title for immediate editing. */
-  async addItem(columnId: string, seed: Partial<ItemDTO> = {}) {
+  /**
+   * Creates a blank card and returns its (temporary) ID synchronously so the
+   * dialog opens instantly. The server call fires in the background; once the
+   * real ID arrives, a redirect is stored so `useItem(tempId)` keeps working.
+   */
+  addItem(columnId: string, seed: Partial<ItemDTO> = {}): string {
     const temporaryId = `temp_${Math.random().toString(36).slice(2, 10)}`;
     const optimistic: ItemRecord = {
       id: temporaryId,
@@ -415,6 +584,27 @@ export class BoardStore {
     this.emit();
     this.setStatus({ kind: 'saving' });
 
+    // Register a pending-ID promise so mutations on the temp item can await
+    // the real server ID before making API calls.
+    const pending = new Promise<string>((resolve, reject) => {
+      this._resolvePendingId.set(temporaryId, { resolve, reject });
+    });
+    // Prevent unhandled-rejection when the promise is rejected but nobody raced.
+    pending.catch(() => {});
+    this._pendingIds.set(temporaryId, pending);
+
+    this._persistNewItem(columnId, temporaryId, optimistic, seed);
+
+    return temporaryId;
+  }
+
+  /** Background half of addItem — persists, swaps temp→real, records redirect. */
+  private async _persistNewItem(
+    columnId: string,
+    temporaryId: string,
+    optimistic: ItemRecord,
+    seed: Partial<ItemDTO>,
+  ) {
     try {
       const { id } = await request<{ id: string }>(
         `${this.base}/columns/${columnId}/items`,
@@ -430,6 +620,13 @@ export class BoardStore {
           }),
         },
       );
+
+      // Record the redirect so useItem(tempId) keeps resolving, and
+      // resolve any pending awaits from mutations that raced against us.
+      this._redirects.set(temporaryId, id);
+      this._resolvePendingId.get(temporaryId)?.resolve(id);
+      this._resolvePendingId.delete(temporaryId);
+      this._pendingIds.delete(temporaryId);
 
       // Swap the placeholder id for the real one, in place.
       const items = { ...this.state.items };
@@ -452,8 +649,12 @@ export class BoardStore {
       };
       this.emit();
       this.setStatus({ kind: 'saved', at: Date.now() });
-      return id;
     } catch (error) {
+      // Reject the pending-ID promise so any awaiting mutations fail fast.
+      this._resolvePendingId.get(temporaryId)?.reject(error);
+      this._resolvePendingId.delete(temporaryId);
+      this._pendingIds.delete(temporaryId);
+
       const items = { ...this.state.items };
       delete items[temporaryId];
       this.state = {
@@ -476,12 +677,12 @@ export class BoardStore {
           error instanceof Error ? error.message : 'Could not add the card.',
         retry: () => void this.addItem(columnId, seed),
       });
-      return null;
     }
   }
 
   patchItem(itemId: string, patch: Partial<ItemDTO>) {
-    const current = this.state.items[itemId];
+    const resolved = this.resolveId(itemId);
+    const current = this.state.items[resolved];
     if (!current) return;
     // Skip no-op saves — inline editors commit on blur whether or not the
     // value actually changed.
@@ -496,24 +697,27 @@ export class BoardStore {
     void this.commit(
       (state) => ({
         ...state,
-        items: { ...state.items, [itemId]: { ...state.items[itemId], ...patch } },
+        items: { ...state.items, [resolved]: { ...state.items[resolved], ...patch } },
       }),
-      () =>
-        request(`${this.base}/items/${itemId}`, {
+      async () => {
+        const realId = await this.awaitRealId(itemId);
+        return request(`${this.base}/items/${realId}`, {
           method: 'PATCH',
           body: JSON.stringify(patch),
-        }),
+        });
+      },
       'save the card',
     );
   }
 
   deleteItem(itemId: string) {
+    const resolved = this.resolveId(itemId);
     void this.commit(
       (state) => {
-        const item = state.items[itemId];
+        const item = state.items[resolved];
         if (!item) return state;
         const items = { ...state.items };
-        delete items[itemId];
+        delete items[resolved];
         return {
           ...state,
           items,
@@ -522,13 +726,16 @@ export class BoardStore {
             [item.columnId]: {
               ...state.columns[item.columnId],
               itemIds: state.columns[item.columnId].itemIds.filter(
-                (id) => id !== itemId,
+                (id) => id !== resolved,
               ),
             },
           },
         };
       },
-      () => request(`${this.base}/items/${itemId}`, { method: 'DELETE' }),
+      async () => {
+        const realId = await this.awaitRealId(itemId);
+        return request(`${this.base}/items/${realId}`, { method: 'DELETE' });
+      },
       'delete the card',
     );
   }
@@ -539,7 +746,8 @@ export class BoardStore {
     to: { columnId: string; time: string | null; dayOffset?: number },
     order?: string[],
   ) {
-    const item = this.state.items[itemId];
+    const resolved = this.resolveId(itemId);
+    const item = this.state.items[resolved];
     if (!item) return;
 
     const fromColumnId = item.columnId;
@@ -553,14 +761,14 @@ export class BoardStore {
 
         columns[fromColumnId] = {
           ...columns[fromColumnId],
-          itemIds: columns[fromColumnId].itemIds.filter((id) => id !== itemId),
+          itemIds: columns[fromColumnId].itemIds.filter((id) => id !== resolved),
         };
 
         // `columns[to.columnId]` already has the card removed when the move is
         // within one column, so appending is right in both cases.
         columns[to.columnId] = {
           ...columns[to.columnId],
-          itemIds: order ?? [...columns[to.columnId].itemIds, itemId],
+          itemIds: order ?? [...columns[to.columnId].itemIds, resolved],
         };
 
         return {
@@ -568,8 +776,8 @@ export class BoardStore {
           columns,
           items: {
             ...state.items,
-            [itemId]: {
-              ...state.items[itemId],
+            [resolved]: {
+              ...state.items[resolved],
               columnId: to.columnId,
               time,
               dayOffset,
@@ -577,8 +785,9 @@ export class BoardStore {
           },
         };
       },
-      () =>
-        request(`${this.base}/items/${itemId}/move`, {
+      async () => {
+        const realId = await this.awaitRealId(itemId);
+        return request(`${this.base}/items/${realId}/move`, {
           method: 'POST',
           body: JSON.stringify({
             columnId: to.columnId,
@@ -586,7 +795,8 @@ export class BoardStore {
             dayOffset,
             order,
           }),
-        }),
+        });
+      },
       'move the card',
     );
   }
@@ -761,7 +971,10 @@ export function useColumn(columnId: string): ColumnRecord | undefined {
 export function useItem(itemId: string): ItemRecord | undefined {
   const store = useStore();
   const snapshot = useCallback(
-    () => store.getState().items[itemId],
+    () => {
+      const resolved = store.resolveId(itemId);
+      return store.getState().items[resolved];
+    },
     [store, itemId],
   );
   return useSyncExternalStore(store.subscribe, snapshot, snapshot);

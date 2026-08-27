@@ -10,6 +10,11 @@ import {
   users,
 } from '@/lib/db';
 import { newShareToken, newTripId } from '@/lib/ids';
+import {
+  tagColorIndexByName,
+  tagColorNameByIndex,
+  type TagColorName,
+} from '@/lib/tag-colors';
 
 import { conflict, notFound } from './errors';
 
@@ -102,7 +107,12 @@ export async function getTripMeta(tripId: string) {
 
 export async function updateTrip(
   tripId: string,
-  patch: { title?: string; activeCityId?: string | null },
+  patch: {
+    title?: string;
+    activeCityId?: string | null;
+    tagColors?: Record<string, number>;
+    tagIcons?: Record<string, string>;
+  },
 ) {
   const set: Record<string, unknown> = { updatedAt: new Date() };
 
@@ -110,6 +120,14 @@ export async function updateTrip(
     const clean = patch.title.trim();
     if (!clean) throw conflict('A trip needs a title.');
     set.title = clean;
+  }
+
+  if (patch.tagColors !== undefined) {
+    set.tagColors = patch.tagColors;
+  }
+
+  if (patch.tagIcons !== undefined) {
+    set.tagIcons = patch.tagIcons;
   }
 
   if (patch.activeCityId !== undefined) {
@@ -126,6 +144,62 @@ export async function updateTrip(
 
   set.revision = sql`${trips.revision} + 1`;
   await db.update(trips).set(set).where(eq(trips.id, tripId));
+}
+
+/**
+ * Pins one tag's colour and/or icon, merging into the existing maps.
+ *
+ * Deliberately not a variant of {@link updateTrip}, which replaces `tagColors`
+ * wholesale: the browser sends a merged copy of the map (it holds the board in
+ * memory), but a caller working one tag at a time would wipe every other
+ * override by omission. Passing null for either field drops the override, so
+ * the tag falls back to its hashed colour / keyword-guessed icon.
+ */
+export async function setTagStyle(
+  tripId: string,
+  tag: string,
+  patch: { color?: TagColorName | null; icon?: string | null },
+) {
+  // Item tags are stored trimmed and lower-cased, so an override keyed
+  // "Food" would never match the "food" on the cards.
+  const key = tag.trim().toLowerCase();
+  if (!key) throw conflict('A tag name cannot be empty.');
+
+  const [trip] = await db
+    .select({ tagColors: trips.tagColors, tagIcons: trips.tagIcons })
+    .from(trips)
+    .where(eq(trips.id, tripId))
+    .limit(1);
+  if (!trip) throw notFound('Trip');
+
+  const tagColors = { ...(trip.tagColors ?? {}) };
+  const tagIcons = { ...(trip.tagIcons ?? {}) };
+
+  if (patch.color !== undefined) {
+    if (patch.color === null) delete tagColors[key];
+    else tagColors[key] = tagColorIndexByName(patch.color) ?? 0;
+  }
+
+  if (patch.icon !== undefined) {
+    if (patch.icon === null) delete tagIcons[key];
+    else tagIcons[key] = patch.icon;
+  }
+
+  await db
+    .update(trips)
+    .set({
+      tagColors,
+      tagIcons,
+      revision: sql`${trips.revision} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(trips.id, tripId));
+
+  return {
+    tag: key,
+    color: key in tagColors ? tagColorNameByIndex(tagColors[key]) : null,
+    icon: key in tagIcons ? tagIcons[key] : null,
+  };
 }
 
 export async function deleteTrip(tripId: string) {

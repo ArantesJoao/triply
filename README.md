@@ -137,7 +137,11 @@ claude mcp add --transport http triply https://your-host/api/mcp \
   --header "Authorization: Bearer triply_…"
 ```
 
-16 tools, including `list_trips`, `get_board`, `import_cities`, `move_item`.
+20 tools, including `list_trips`, `get_board`, `import_cities`, `move_item`,
+`set_tag_style` and the per-city `rename_tag` / `delete_tag` — full CRUD over
+trips, cities, columns and items. Arguments go through the same zod schemas as
+the REST API. Member management and the share link are deliberately left out:
+those are owner decisions, made in the app.
 
 ## Implementation notes
 
@@ -214,4 +218,5 @@ mid-save, so an in-flight edit can't be clobbered by a stale snapshot.
 ## Reference
 
 `docs/build-spec.md` and `docs/visual-identity.md` hold the product and design
-specs this was built from.
+specs this was built from. `docs/DEPLOY.md` is the PR and squash-merge
+convention every change lands through.
