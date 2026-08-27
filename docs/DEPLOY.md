@@ -62,12 +62,13 @@ code and the live site never disagree.
 
 ## Migrations
 
-Vercel runs `vercel-build` in preference to `build`, and that script applies
-the checked-in Drizzle migrations before Next compiles:
+Vercel runs `vercel-build` in preference to `build`. That script
+(`scripts/vercel-build.mjs`) applies the checked-in Drizzle migrations before
+Next compiles — but **only on production deploys**.
 
-```json
-"vercel-build": "drizzle-kit migrate && next build --turbopack"
-```
+Preview deploys are deliberately excluded. On this plan preview and production
+share one `DATABASE_URL`, so a preview build that migrated would alter the
+production schema from an unmerged branch.
 
 Order matters more than it looks. Drizzle names every column explicitly in its
 `SELECT`s, so a deploy that ships code ahead of its migration does not degrade
@@ -87,6 +88,26 @@ production path is `db:generate` (checked in, reviewed as part of the PR) then
 
 Local `npm run build` deliberately does *not* migrate, so the PR check gate
 never touches a database.
+
+### Baselining a pushed database
+
+`drizzle-kit migrate` reads only the newest row of `drizzle.__drizzle_migrations`
+and applies every migration newer than it. A database created with
+`drizzle-kit push` has no such table, so `migrate` sees no rows, replays `0000`
+against tables that already exist, and the transaction aborts. The failure
+looks like a build that connects, spins on "applying migrations...", then exits
+1 a second later — drizzle's own error is lost because it renders over the
+spinner line and the log collector keeps only the last frame.
+
+`scripts/vercel-build.mjs` handles this itself, before calling `migrate`. If
+the journal is empty *and* `public.trip` already exists, it records `0000` as
+applied without executing it, so `migrate` starts at `0001`. On a fresh
+database the sentinel is absent and `migrate` builds everything from `0000` as
+normal; on an already-journalled one it does nothing. There is no manual step.
+
+Generated migrations should still be written idempotently where Postgres
+allows it (`ADD COLUMN IF NOT EXISTS`), so a database that drifted ahead via
+`push` does not wedge the deploy.
 
 ## The flow
 
