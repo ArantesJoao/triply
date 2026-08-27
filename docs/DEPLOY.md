@@ -60,6 +60,34 @@ See the Verification section of the README.
 `main` undoes exactly one PR. Prefer that over rolling back at the host, so the
 code and the live site never disagree.
 
+## Migrations
+
+Vercel runs `vercel-build` in preference to `build`, and that script applies
+the checked-in Drizzle migrations before Next compiles:
+
+```json
+"vercel-build": "drizzle-kit migrate && next build --turbopack"
+```
+
+Order matters more than it looks. Drizzle names every column explicitly in its
+`SELECT`s, so a deploy that ships code ahead of its migration does not degrade
+gracefully — it 500s on every read of that table until the column exists.
+Running the migration inside the build also fails closed: no `DATABASE_URL`,
+no build, no deploy.
+
+**`DATABASE_URL` must be present in Vercel's _Build_ environment**, not only
+Runtime. They are separate scopes in the project settings, and a build-scope
+omission stays invisible until the migrate step runs.
+
+**Never point `drizzle-kit push` at production.** `push` diffs the live
+database against the schema and will drop a column the schema no longer
+mentions. It is a dev convenience against a disposable database. The
+production path is `db:generate` (checked in, reviewed as part of the PR) then
+`db:migrate` (applied in order, journal-tracked).
+
+Local `npm run build` deliberately does *not* migrate, so the PR check gate
+never touches a database.
+
 ## The flow
 
 ### 1. Preflight

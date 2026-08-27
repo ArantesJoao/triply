@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack -p 3103",
     "build": "next build --turbopack",
+    "vercel-build": "drizzle-kit migrate && next build --turbopack",
     "start": "next start -p 3103",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
