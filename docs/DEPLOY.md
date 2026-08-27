@@ -30,9 +30,10 @@
 `trpl-7-fix-cross-midnight-card-ordering`). Lowercase, non-alphanumeric runs
 collapsed to a single hyphen.
 
-**Repo settings** (verified, GitHub): squash merge enabled; merge commits and
-rebase merges are also enabled but are not to be used. `delete_branch_on_merge`
-is on. The merge step still passes `--delete-branch`, because the repo setting
+**Repo settings** (verified, GitHub): squash merge is the *only* method
+enabled — merge commits and rebase merges are disabled at the repository, so
+GitHub enforces the one-PR-one-commit rule rather than leaving it to whoever
+is clicking the button. `delete_branch_on_merge` is on. The merge step still passes `--delete-branch`, because the repo setting
 only removes the *remote* branch — the flag also cleans up your local copy.
 
 **Skills** automate both halves of this, and are the intended way to ship:
