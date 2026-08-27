@@ -48,6 +48,10 @@ export type BoardDTO = {
   title: string;
   activeCityId: string | null;
   shareToken: string;
+  /** Per-tag colour overrides: `{ [tagName]: paletteIndex }`. */
+  tagColors: Record<string, number>;
+  /** Per-tag icon overrides: `{ [tagName]: iconKey }`; `''` means no icon. */
+  tagIcons: Record<string, string>;
   revision: number;
   updatedAt: string;
   cities: CityDTO[];

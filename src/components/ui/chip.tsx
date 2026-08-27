@@ -4,16 +4,76 @@ import { Check, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { cn } from '@/lib/cn';
+import { tagColor, type TagColor } from '@/lib/tag-colors';
+import { tagIconKey, type TagIconKey } from '@/lib/tag-icons';
+import { useDarkMode } from '@/lib/use-dark-mode';
+
+import { TagIcon } from './tag-icon';
 
 /**
- * Tag chip. Compact on purpose — several sit on one Plan Card, and tags stay
- * secondary to the activity title.
+ * The chip's leading mark: a check when selected, the tag's icon when it has
+ * one, else the plain coloured dot. Exported so the tag-style popover's
+ * trigger can render exactly the same mark.
+ */
+export function TagIndicator({
+  icon,
+  dot,
+  selected = false,
+  size = 'md',
+}: {
+  icon?: TagIconKey | null;
+  dot: string;
+  selected?: boolean;
+  size?: 'sm' | 'md';
+}) {
+  if (selected) {
+    return (
+      <Check
+        size={size === 'sm' ? 10 : 12}
+        className="shrink-0"
+        style={{ color: dot }}
+        strokeWidth={3}
+      />
+    );
+  }
+
+  if (icon) {
+    return (
+      <TagIcon
+        icon={icon}
+        size={size === 'sm' ? 11 : 13}
+        color={dot}
+        className="shrink-0"
+      />
+    );
+  }
+
+  return (
+    <span
+      className={cn('shrink-0 rounded-full', size === 'sm' ? 'size-1' : 'size-2')}
+      style={{ background: dot }}
+    />
+  );
+}
+
+/**
+ * Tag chip — r=12, coloured dot or icon, theme-aware.
+ *
+ * Each tag gets a deterministic colour from an 8-hue palette (via
+ * `tagColor()`) and, where its name suggests one, an icon (via `tagIconKey()`).
+ * Pass `color` to override the colour directly, or `tagColors` / `tagIcons` to
+ * let the tag-name lookup respect the trip's overrides. Compact `sm` variant is
+ * for plan-card inline tags.
  */
 export function TagChip({
   label,
   onRemove,
   onClick,
   selected = false,
+  color,
+  tagColors,
+  tagIcons,
+  indicator,
   size = 'md',
   className,
 }: {
@@ -21,33 +81,47 @@ export function TagChip({
   onRemove?: () => void;
   onClick?: () => void;
   selected?: boolean;
+  /** Override the auto-derived colour directly. */
+  color?: TagColor;
+  /** Per-trip `{ tagName: paletteIndex }` overrides (from the store). */
+  tagColors?: Record<string, number>;
+  /** Per-trip `{ tagName: iconKey }` overrides (from the store). */
+  tagIcons?: Record<string, string>;
+  /** Replaces the leading dot/icon — used to make it a style-picker trigger. */
+  indicator?: React.ReactNode;
   size?: 'sm' | 'md';
   className?: string;
 }) {
   const interactive = Boolean(onClick);
   const Wrapper = interactive ? 'button' : 'span';
+  const c = color ?? tagColor(label, tagColors);
+  const icon = tagIconKey(label, tagIcons);
+  const dark = useDarkMode();
+
+  const bg = dark ? c.bgDark : c.bg;
+  const text = dark ? c.textDark : c.text;
+  const dot = dark ? c.dotDark : c.dot;
+  const border = dark ? c.borderDark : c.border;
 
   return (
     <span
       className={cn(
-        'inline-flex max-w-full items-center rounded-full border transition-colors duration-150 ease-out',
-        selected
-          ? 'border-brand bg-brand-soft text-brand-on-soft'
-          : 'border-transparent bg-brand-soft text-brand-on-soft',
-        size === 'sm' ? 'h-5 gap-1 pr-1.5 pl-2' : 'h-7 gap-1.5 pr-2 pl-2.5',
+        'inline-flex max-w-full items-center border transition-colors duration-150 ease-out',
+        size === 'sm' ? 'rounded-lg' : 'rounded-xl',
+        size === 'sm'
+          ? 'h-[22px] gap-1 pr-1.5 pl-2 text-[10px]'
+          : 'h-8 gap-1.5 pr-2 pl-3 text-xs',
         className,
       )}
+      style={{
+        background: bg,
+        color: text,
+        borderColor: selected ? border : 'transparent',
+      }}
     >
-      {/* Selection carries a check as well as colour. */}
-      {selected ? (
-        <Check size={size === 'sm' ? 9 : 12} className="shrink-0" strokeWidth={3} />
-      ) : (
-        <span
-          className={cn(
-            'shrink-0 rounded-full bg-brand',
-            size === 'sm' ? 'size-1' : 'size-1.5',
-          )}
-        />
+      {/* Dot / icon / check indicator */}
+      {indicator ?? (
+        <TagIndicator icon={icon} dot={dot} selected={selected} size={size} />
       )}
 
       <Wrapper
@@ -55,7 +129,9 @@ export function TagChip({
           ? { type: 'button' as const, onClick, 'aria-pressed': selected }
           : {})}
         className={cn(
-          'min-w-0 truncate font-medium',
+          // Display-only. Tags are stored and matched lowercase (see
+          // `TagInput`), so this capitalises without touching the value.
+          'min-w-0 truncate font-medium capitalize',
           size === 'sm' ? 'text-[10px]' : 'text-xs',
           interactive && 'cursor-pointer',
         )}
@@ -73,7 +149,7 @@ export function TagChip({
           aria-label={`Remove tag ${label}`}
           className="grid shrink-0 place-items-center rounded-full opacity-55 transition-opacity hover:opacity-100"
         >
-          <X size={size === 'sm' ? 9 : 12} strokeWidth={2.5} />
+          <X size={size === 'sm' ? 10 : 16} strokeWidth={2.5} />
         </button>
       )}
     </span>
@@ -87,10 +163,19 @@ export function TagChip({
 export function TagInput({
   tags,
   onChange,
+  tagColors,
+  tagIcons,
+  renderIndicator,
   placeholder = '+ tag',
 }: {
   tags: string[];
   onChange: (tags: string[]) => void;
+  /** Per-trip tag colour overrides forwarded to each chip. */
+  tagColors?: Record<string, number>;
+  /** Per-trip tag icon overrides forwarded to each chip. */
+  tagIcons?: Record<string, string>;
+  /** Makes each chip's mark interactive — see `TagStyleTrigger`. */
+  renderIndicator?: (tag: string) => React.ReactNode;
   placeholder?: string;
 }) {
   const [draft, setDraft] = useState('');
@@ -108,6 +193,9 @@ export function TagInput({
         <TagChip
           key={tag}
           label={tag}
+          tagColors={tagColors}
+          tagIcons={tagIcons}
+          indicator={renderIndicator?.(tag)}
           onRemove={() => onChange(tags.filter((t) => t !== tag))}
         />
       ))}
@@ -125,7 +213,7 @@ export function TagInput({
         onBlur={() => commit(draft)}
         placeholder={placeholder}
         aria-label="Add a tag"
-        className="h-7 w-24 min-w-0 rounded-full border border-dashed border-line-strong bg-transparent px-2.5 text-xs outline-none placeholder:text-faint focus:border-brand"
+        className="h-8 w-24 min-w-0 rounded-xl border border-dashed border-line-strong bg-transparent px-3 text-xs outline-none placeholder:text-faint focus:border-brand"
       />
     </div>
   );

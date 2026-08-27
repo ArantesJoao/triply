@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { BoardDTO } from '@/lib/board-model';
 
 import { BoardCanvas } from './board-canvas';
 import { BoardHeader } from './board-header';
-import { CityTabs } from './city-tabs';
+import { CueStrip } from './cue-strip';
 import {
   BoardStore,
   BoardStoreProvider,
@@ -36,7 +36,6 @@ export function BoardApp({
     <BoardStoreProvider value={store}>
       <div className="flex h-dvh flex-col overflow-hidden bg-page">
         <BoardHeader user={user} />
-        <CityTabs />
         <ActiveCityBoard />
       </div>
     </BoardStoreProvider>
@@ -45,5 +44,38 @@ export function BoardApp({
 
 function ActiveCityBoard() {
   const trip = useTrip();
-  return <BoardCanvas cityId={trip.activeCityId} />;
+
+  // Tag filter state lives here so the cue strip and the board canvas share it.
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+
+  const toggleFilter = useCallback((tag: string) => {
+    setActiveFilters((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  }, []);
+
+  // Reset filters when switching cities.
+  useEffect(() => {
+    setActiveFilters([]);
+  }, [trip.activeCityId]);
+
+  // Quick-add: create a blank card in the first timed column of this city.
+  const [addRequest, setAddRequest] = useState(0);
+
+  return (
+    <>
+      {/* Cue strip replaces the old CityTabs bar — city switching, tag
+          filtering, quick-add, and timeline marker in one compact strip. */}
+      <CueStrip
+        onAddItem={() => setAddRequest((n) => n + 1)}
+        activeFilters={activeFilters}
+        onToggleFilter={toggleFilter}
+      />
+      <BoardCanvas
+        cityId={trip.activeCityId}
+        tagFilters={activeFilters}
+        addRequest={addRequest}
+      />
+    </>
+  );
 }

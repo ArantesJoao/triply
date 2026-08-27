@@ -16,8 +16,8 @@ export const MINUTES_PER_DAY = 1440;
 /** Drops onto the axis round to this, per the spec's 15-minute snapping. */
 export const SNAP_MINUTES = 15;
 
-/** 06:00 — the default top of the axis. */
-export const DEFAULT_AXIS_START = 6 * 60;
+/** 04:00 — the default top of the axis. */
+export const DEFAULT_AXIS_START = 4 * 60;
 
 /** 26:00, i.e. 02:00 the following day — the default bottom of the axis. */
 export const DEFAULT_AXIS_END = 26 * 60;
@@ -26,6 +26,62 @@ export const DEFAULT_AXIS_END = 26 * 60;
 const MIN_AXIS_SPAN = 8 * 60;
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/* --------------------------------------------------------------------- *
+ * Calendar dates.
+ *
+ * A column's `date` is a plain `YYYY-MM-DD` civil date, not an instant — the
+ * 8th of the month in Amsterdam is the 8th wherever the trip is being read
+ * from. So these never touch UTC: `toISOString()` on a local midnight lands on
+ * the previous day for anyone west of Greenwich, which would quietly shift a
+ * whole itinerary by one.
+ * --------------------------------------------------------------------- */
+
+const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+export function isValidDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !DATE_RE.test(value)) return false;
+  // Rejects the well-formed impossibilities — 2026-02-31 round-trips to March.
+  return toISODate(parseISODate(value)) === value;
+}
+
+/** `YYYY-MM-DD` → a Date at local midnight. */
+function parseISODate(value: string): Date {
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** A local Date → `YYYY-MM-DD`. */
+function toISODate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Today, in the reader's own timezone. */
+export function todayISO(): string {
+  return toISODate(new Date());
+}
+
+/** `YYYY-MM-DD` shifted by whole days. Handles month and year ends. */
+export function addDaysISO(value: string, days: number): string {
+  const date = parseISODate(value);
+  date.setDate(date.getDate() + days);
+  return toISODate(date);
+}
+
+/**
+ * The column title a date suggests — "Friday 28".
+ *
+ * Pinned to `en-US` rather than the reader's locale on purpose: this becomes a
+ * stored column *title*, shared with everyone on the trip, so it must not come
+ * out as "qui. 27" for whoever happened to create the day. It is a default the
+ * user can overwrite, not a rendered date.
+ */
+export function formatDayTitle(value: string): string {
+  const date = parseISODate(value);
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+  return `${weekday} ${date.getDate()}`;
+}
 
 export function isValidTime(value: unknown): value is string {
   return typeof value === 'string' && TIME_RE.test(value);

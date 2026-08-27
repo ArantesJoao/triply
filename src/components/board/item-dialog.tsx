@@ -11,7 +11,8 @@ import { InlineText } from '@/components/ui/inline-text';
 import { cn } from '@/lib/cn';
 import { normaliseTime } from '@/lib/time';
 
-import { useBoard, useItem, useStore } from './store';
+import { useBoard, useItem, useStore, useTrip } from './store';
+import { TagStyleTrigger } from './tag-style-popover';
 
 const DURATIONS = [
   { label: 'None', value: null },
@@ -33,6 +34,7 @@ export function ItemDialog({
 }) {
   const item = useItem(itemId ?? '');
   const store = useStore();
+  const trip = useTrip();
   const columns = useBoard((state) => state.columns);
   const cities = useBoard((state) => state.cities);
 
@@ -180,8 +182,16 @@ export function ItemDialog({
           <Label>Tags</Label>
           <TagInput
             tags={item.tags}
+            tagColors={trip.tagColors}
+            tagIcons={trip.tagIcons}
+            renderIndicator={(tag) => <TagStyleTrigger tag={tag} />}
             onChange={(tags) => store.patchItem(item.id, { tags })}
           />
+          {item.tags.length > 0 && (
+            <p className="mt-2 text-[11px] text-faint">
+              Tap a tag&rsquo;s icon to change its icon and colour across the trip.
+            </p>
+          )}
         </div>
 
         {siblings.length > 0 && (

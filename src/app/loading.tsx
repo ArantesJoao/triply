@@ -1,11 +1,13 @@
-import { Logo } from '@/components/brand/route-mark';
+import { MapPin, Users } from 'lucide-react';
+
+import { Logo, RouteMark } from '@/components/brand/route-mark';
 import { ThemeToggle } from '@/components/theme';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
  * Instant shell while the trips-list page fetches auth + trip data.
- * Static parts (logo, toggle, heading) render immediately; only the
- * data-dependent sections shimmer.
+ * Static parts (logo, toggle, heading, nav labels) render immediately; only the
+ * data-dependent sections shimmer, at the sizes the real page renders them.
  */
 export default function TripsLoading() {
   return (
@@ -15,8 +17,12 @@ export default function TripsLoading() {
         <Logo size="sm" />
         <div className="flex-1" />
         <ThemeToggle />
-        <Skeleton className="h-7 w-16 rounded-full" />
-        <Skeleton className="h-7 w-16 rounded-full" />
+        <span className="rounded-full px-3 py-1.5 text-[13px] text-muted opacity-50">
+          Settings
+        </span>
+        <span className="rounded-full px-3 py-1.5 text-[13px] text-muted opacity-50">
+          Sign out
+        </span>
       </header>
 
       {/* ── Body ── */}
@@ -24,10 +30,13 @@ export default function TripsLoading() {
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold">Your trips</h1>
-            <Skeleton className="mt-2 h-4 w-44 max-w-full" />
+            {/* "Signed in as …" */}
+            <Skeleton className="mt-1.5 h-3.5 w-48 max-w-full" />
           </div>
-          <div className="hidden items-end gap-2 sm:flex">
-            <Skeleton className="h-11 w-52 rounded-xl" />
+
+          {/* New-trip form — visible at every width, like the real one. */}
+          <div className="flex items-end gap-2">
+            <Skeleton className="h-11 w-52 max-w-full rounded-xl" />
             <Skeleton className="h-11 w-28 rounded-xl" />
           </div>
         </div>
@@ -38,20 +47,30 @@ export default function TripsLoading() {
             <li key={i}>
               <div className="flex h-full flex-col justify-between gap-6 rounded-xl border border-line bg-card p-5">
                 <div>
-                  <Skeleton className="h-5 w-40" />
-                  <Skeleton className="mt-2 h-3.5 w-24" />
+                  <Skeleton className="h-5 w-40 max-w-full" />
+                  <Skeleton className="mt-1.5 h-3 w-24" />
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="h-3.5 w-16" />
-                    <Skeleton className="h-3.5 w-8" />
-                  </div>
+                  <span className="flex items-center gap-3 text-muted opacity-40">
+                    <span className="flex items-center gap-1.5">
+                      <MapPin size={14} />
+                      <Skeleton className="h-3 w-10" />
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <Users size={14} />
+                      <Skeleton className="h-3 w-3" />
+                    </span>
+                  </span>
                   <Skeleton className="h-5 w-14 rounded-full" />
                 </div>
               </div>
             </li>
           ))}
         </ul>
+
+        <div className="mt-14 flex items-center justify-center gap-4 opacity-60">
+          <RouteMark width={110} />
+        </div>
       </main>
     </div>
   );

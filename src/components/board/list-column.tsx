@@ -5,15 +5,19 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { BacklogIllustration, EmptyState } from '@/components/ui/empty-state';
+import {
+  BacklogIllustration,
+  BacklogTagHint,
+  EmptyState,
+} from '@/components/ui/empty-state';
 import { cn } from '@/lib/cn';
 import { BACKLOG_KEY } from '@/lib/board-model';
 
 import { ColumnHeader } from './column-header';
 import {
   AXIS_GUTTER_PX,
+  AXIS_TOP_GAP_PX,
   COLUMN_HEADER_PX,
-  TRAY_PX,
   minutesToPx,
 } from './geometry';
 import { PlanCard } from './plan-card';
@@ -26,14 +30,13 @@ import { useColumn, useColumnItems } from './store';
 export function ListColumn({
   columnId,
   width,
-  /** Height of the timed axis, so lists line up with the day columns. */
-  bodyHeight,
+  tagFilters = [],
   onOpenItem,
   onAddItem,
 }: {
   columnId: string;
   width: number | string;
-  bodyHeight: number | null;
+  tagFilters?: string[];
   onOpenItem: (itemId: string) => void;
   onAddItem: (columnId: string) => void;
 }) {
@@ -63,12 +66,11 @@ export function ListColumn({
 
       <div
         ref={setNodeRef}
-        // Matches the timed columns' tray + axis, so the tops and bottoms align.
-        style={
-          bodyHeight
-            ? { height: bodyHeight + TRAY_PX + 8 }
-            : { minHeight: 240 }
-        }
+        // Height comes from the content, not from the axis. A list of four
+        // ideas is four cards tall; stretching it to match the day columns
+        // just draws a long empty box and says nothing. The top gap is the
+        // days' gap, so this box starts level with their first hour.
+        style={{ marginTop: AXIS_TOP_GAP_PX }}
         className={cn(
           'scroll-slim flex flex-col gap-2 overflow-y-auto rounded-xl border p-2 transition-colors duration-150',
           isOver ? 'border-brand bg-brand-soft/40' : 'border-line bg-card',
@@ -81,11 +83,11 @@ export function ListColumn({
           {items.length === 0 ? (
             <EmptyState
               size="sm"
-              className="m-auto"
+              // Top-aligned, not centred: in a full-height column centring
+              // pushes the illustration and CTA below the fold on a laptop.
+              className="mx-auto"
               illustration={
-                isBacklog ? (
-                  <BacklogIllustration className="text-brand" />
-                ) : undefined
+                isBacklog ? <BacklogIllustration className="w-32" /> : undefined
               }
               title={
                 isBacklog ? 'Your backlog is empty' : `${column.title} is empty`
@@ -95,6 +97,9 @@ export function ListColumn({
                   ? "Save ideas as you browse so you're ready to build the plan."
                   : 'Drop cards here, or add one.'
               }
+              // Only the Backlog gets the examples: it is the one column whose
+              // job has to be explained before anything is in it.
+              hint={isBacklog ? <BacklogTagHint /> : undefined}
               action={
                 <Button
                   size="sm"
@@ -113,6 +118,10 @@ export function ListColumn({
                 itemId={item.id}
                 variant="list"
                 onOpen={onOpenItem}
+                dimmed={
+                  tagFilters.length > 0 &&
+                  !tagFilters.some((t) => item.tags.includes(t))
+                }
               />
             ))
           )}
@@ -151,12 +160,20 @@ export function AxisGutter({
       className="sticky left-0 z-20 shrink-0 bg-page/95 backdrop-blur-sm"
       style={{ width: AXIS_GUTTER_PX }}
     >
-      {/* Spacers matching the column header and tray exactly, so the first
-          hour label lines up with the top of every column's axis. */}
-      <div style={{ height: COLUMN_HEADER_PX }} />
-      <div style={{ height: TRAY_PX + 8 }} />
+      {/* The sticky cover is the header's height and no more. It used to run
+          all the way down to the axis origin, which is exactly where the first
+          hour label is centred — so "04:00" was permanently half-swallowed by
+          it. Ending it level with the column headers gives that label its top
+          half back, and labels scrolling up still vanish on the same line the
+          headers' bottom edge sits on. */}
+      <div
+        className="sticky top-0 z-10 bg-page/95"
+        style={{ height: COLUMN_HEADER_PX }}
+      />
 
-      <div className="relative" style={{ height }}>
+      {/* The gap moves here, so the origin still lands at
+          COLUMN_HEADER_PX + AXIS_TOP_GAP_PX — level with every column. */}
+      <div className="relative" style={{ height, marginTop: AXIS_TOP_GAP_PX }}>
         {ticks.map((at) => {
           const past = at >= 24 * 60;
           const hour = Math.floor((at % (24 * 60)) / 60);

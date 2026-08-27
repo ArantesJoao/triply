@@ -49,6 +49,22 @@ const ENDPOINTS: {
     ],
   },
   {
+    group: 'Tags',
+    note: 'Tags belong to a city — the same name in another city is untouched.',
+    rows: [
+      [
+        'PATCH',
+        '/api/trips/:tripId/cities/:city/tags',
+        'Body: { tag, name }. 409 if the new name is already used in the city.',
+      ],
+      [
+        'DELETE',
+        '/api/trips/:tripId/cities/:city/tags?tag=…',
+        'Strip the tag off every card in the city.',
+      ],
+    ],
+  },
+  {
     group: 'Columns',
     rows: [
       [
@@ -258,11 +274,19 @@ Item   { id, title, time, dayOffset, durationMin, blurb, tags[], position }`}</C
   --header "Authorization: Bearer triply_…"`}</Code>
           <p className="mt-3 text-[13px] leading-relaxed text-muted">
             Tools: <C>list_trips</C>, <C>get_board</C>, <C>get_city</C>,{' '}
-            <C>create_trip</C>, <C>import_cities</C>, <C>create_city</C>,{' '}
-            <C>update_city</C>, <C>delete_city</C>, <C>set_active_city</C>,{' '}
-            <C>create_column</C>, <C>update_column</C>, <C>delete_column</C>,{' '}
-            <C>create_item</C>, <C>update_item</C>, <C>move_item</C>,{' '}
-            <C>delete_item</C>.
+            <C>create_trip</C>, <C>update_trip</C>, <C>delete_trip</C>,{' '}
+            <C>set_tag_style</C>, <C>rename_tag</C>, <C>delete_tag</C>,{' '}
+            <C>import_cities</C>, <C>create_city</C>,{' '}
+            <C>update_city</C>, <C>delete_city</C>, <C>create_column</C>,{' '}
+            <C>update_column</C>, <C>delete_column</C>, <C>create_item</C>,{' '}
+            <C>update_item</C>, <C>move_item</C>, <C>delete_item</C>.
+          </p>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted">
+            Arguments are validated against the same schemas as the REST API, so
+            a bad time is rejected rather than quietly dropped, and an
+            unrecognised argument is an error rather than a no-op. Inviting
+            people and rotating the share link stay off the tool surface —
+            they&apos;re owner decisions, made in the app.
           </p>
         </Section>
 

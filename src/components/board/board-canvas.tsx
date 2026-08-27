@@ -16,7 +16,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { CityIllustration, EmptyState } from '@/components/ui/empty-state';
@@ -26,6 +26,8 @@ import { axisRangeFor, fromAxisMinutes, snapMinutes } from '@/lib/time';
 import { AddColumnDialog } from './add-column-dialog';
 import {
   AXIS_GUTTER_PX,
+  AXIS_TOP_GAP_PX,
+  COLUMN_HEADER_PX,
   LIST_COLUMN_PX,
   TIMED_COLUMN_PX,
   minutesToPx,
@@ -40,10 +42,17 @@ import { useMediaQuery } from './use-media-query';
 
 type DropTarget =
   | { kind: 'axis'; columnId: string; minutes: number }
-  | { kind: 'tray'; columnId: string; index: number }
   | { kind: 'list'; columnId: string; index: number };
 
-export function BoardCanvas({ cityId }: { cityId: string | null }) {
+export function BoardCanvas({
+  cityId,
+  tagFilters = [],
+  addRequest = 0,
+}: {
+  cityId: string | null;
+  tagFilters?: string[];
+  addRequest?: number;
+}) {
   const store = useStore();
   const city = useCity(cityId);
   const columns = useBoard((state) => state.columns);
@@ -153,8 +162,7 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
       if (type === 'item' && columnId) {
         const column = columns[columnId];
         index = column ? column.itemIds.indexOf(String(over.id)) : null;
-        const hovered = items[String(over.id)];
-        type = column?.timed ? (hovered?.time ? 'axis' : 'tray') : 'list';
+        type = column?.timed ? 'axis' : 'list';
       }
 
       if (!columnId || !columns[columnId]) return null;
@@ -179,17 +187,13 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
         return { kind: 'axis', columnId, minutes };
       }
 
-      if (type === 'tray' && column.timed) {
-        return { kind: 'tray', columnId, index: index ?? 0 };
-      }
-
       return {
         kind: 'list',
         columnId,
         index: index ?? column.itemIds.length,
       };
     },
-    [columns, items, axis.start, axis.end],
+    [columns, axis.start, axis.end],
   );
 
   const onDragStart = (event: DragStartEvent) => {
@@ -224,7 +228,7 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
       return;
     }
 
-    // Tray and list drops both clear the time and take an explicit order.
+    // List drops clear the time and take an explicit order.
     const destination = columns[target.columnId];
     const withoutActive = destination.itemIds.filter((id) => id !== active.id);
     const order = [
@@ -241,24 +245,33 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
   };
 
   const handleAddItem = useCallback(
-    async (columnId: string, time: string | null = null) => {
-      const id = await store.addItem(columnId, { time });
+    (columnId: string, time: string | null = null) => {
+      const id = store.addItem(columnId, { time });
       // New cards open straight into title editing.
-      if (id) {
-        setAutoFocusItemId(id);
-        setOpenItemId(id);
-      }
+      setAutoFocusItemId(id);
+      setOpenItemId(id);
     },
     [store],
   );
+
+  // Cue-strip "Add to Trip" — creates a blank card in the first timed column
+  // (or the first list column if none are timed).
+  const lastAddRequest = useRef(addRequest);
+  useEffect(() => {
+    if (addRequest === lastAddRequest.current) return;
+    lastAddRequest.current = addRequest;
+    const target = timedColumns[0] ?? listColumns[0];
+    if (target) void handleAddItem(target.id);
+  }, [addRequest, timedColumns, listColumns, handleAddItem]);
 
   if (!city) {
     return (
       <div className="grid flex-1 place-items-center px-6 py-16">
         <EmptyState
+          className="w-full"
           illustration={<CityIllustration />}
           title="No cities yet"
-          body="Add your first destination and start turning ideas into a plan."
+          body="Add your first destination to get started."
           action={
             <Button variant="primary" onClick={() => setAddingColumn(false)}>
               <Plus size={17} />
@@ -323,9 +336,10 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
         {nothingPlanned ? (
           <div className="grid h-full place-items-center px-6 py-12">
             <EmptyState
+              className="w-full"
               illustration={<CityIllustration />}
-              title={`${city.title} — no plans yet`}
-              body="This city has a backlog, but nothing on the timeline. Add a day to start scheduling."
+              title={`${city.title}, no plans yet`}
+              body="Add a day to start scheduling."
               action={
                 <Button variant="primary" onClick={() => setAddingColumn(true)}>
                   <Plus size={17} />
@@ -338,13 +352,15 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
           <div className="flex items-start gap-3 px-4 pt-3 pb-12 lg:w-max">
             {showTimed && <AxisGutter axis={axis} height={axisHeight} />}
 
-            {visibleTimed.map((column) => (
+            {visibleTimed.map((column, index) => (
               <TimedColumn
                 key={column.id}
                 columnId={column.id}
                 axis={axis}
                 width={compact ? `calc(100vw - ${AXIS_GUTTER_PX + 44}px)` : TIMED_COLUMN_PX}
                 dropHint={hint?.columnId === column.id ? hint.minutes : null}
+                closesGrid={index === visibleTimed.length - 1}
+                tagFilters={tagFilters}
                 onOpenItem={setOpenItemId}
                 onAddItem={handleAddItem}
               />
@@ -355,7 +371,7 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
                 key={column.id}
                 columnId={column.id}
                 width={compact ? 'calc(100vw - 48px)' : LIST_COLUMN_PX}
-                bodyHeight={showTimed ? axisHeight : null}
+                tagFilters={tagFilters}
                 onOpenItem={setOpenItemId}
                 onAddItem={handleAddItem}
               />
@@ -365,8 +381,12 @@ export function BoardCanvas({ cityId }: { cityId: string | null }) {
               <button
                 type="button"
                 onClick={() => setAddingColumn(true)}
-                style={{ width: 168 }}
-                className="mt-[42px] flex h-24 shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-line-strong text-[12px] text-muted transition-colors hover:border-brand hover:text-brand"
+                style={{
+                  width: 168,
+                  // Level with the day columns' axis and the lists' first card.
+                  marginTop: COLUMN_HEADER_PX + AXIS_TOP_GAP_PX,
+                }}
+                className="flex h-24 shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-line-strong text-[12px] text-muted transition-colors hover:border-brand hover:text-brand"
               >
                 <Plus size={17} />
                 Add day / list

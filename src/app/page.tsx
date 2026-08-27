@@ -82,7 +82,7 @@ export default async function TripsPage() {
           <div className="rounded-xl border border-line bg-card">
             <EmptyState
               title="No trips yet"
-              body="Start one, then invite the people you're travelling with. Ideas first, schedule later."
+              body="Start one, then invite the people you're travelling with."
             />
           </div>
         ) : (

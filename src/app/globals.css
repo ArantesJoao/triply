@@ -193,6 +193,42 @@
   .scroll-none::-webkit-scrollbar {
     display: none;
   }
+
+  /*
+   * The empty-state cityscape ships as an alpha mask rather than a picture, so
+   * the element's own background colour becomes the ink. That keeps it a
+   * first-class part of both themes instead of a light-mode image filtered for
+   * dark. Its rounded edge fade is baked into the alpha channel.
+   * Built by scripts/build-city-mask.mjs.
+   */
+  .mask-city {
+    -webkit-mask-image: url('/city-empty.webp');
+    mask-image: url('/city-empty.webp');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  /*
+   * The empty-Backlog box ships the same way, and for the same reasons: one
+   * ink, both themes, no white plate to fight in the dark. Its idea cards read
+   * as the palest tint rather than disappearing — see
+   * scripts/build-backlog-mask.mjs. Already cropped to its own bounds, so no
+   * edge fade here.
+   */
+  .mask-backlog {
+    -webkit-mask-image: url('/backlog-empty.webp');
+    mask-image: url('/backlog-empty.webp');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
 }
 
 /* Skeleton shimmer — a gradient sweep instead of a flat pulse.             */

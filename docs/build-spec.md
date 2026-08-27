@@ -214,14 +214,14 @@ handling is fine at this scale (4 people, casual use).
         {
           "id": "fri9", "title": "Fri 9", "timed": true,
           "items": [
-            { "title": "Portobello Road Market", "time": "09:00", "blurb": "Antiques, food stalls, colourful streets (Beltra & João).", "tags": ["market", "shopping"] },
+            { "title": "Portobello Road Market", "time": "09:00", "blurb": "Antiques, food stalls, colourful streets.", "tags": ["market", "shopping"] },
             { "title": "Notting Hill streets", "time": "09:45", "blurb": "The famous pastel-coloured houses, good for photos.", "tags": ["walk", "landmark"] },
             { "title": "Hyde Park & Kensington Gardens", "time": "12:00", "blurb": "Walk east through the park toward Buckingham Palace.", "tags": ["park"] },
             { "title": "Buckingham Palace (exterior) & St James's Park", "time": "12:45", "blurb": "Check the guard-change schedule if you want to catch it.", "tags": ["landmark", "park"] },
             { "title": "Westminster walk", "time": "14:00", "blurb": "Big Ben, Houses of Parliament, Westminster Abbey exterior.", "tags": ["landmark"] },
             { "title": "Trafalgar Square", "time": "15:30", "blurb": "Fountains, National Gallery steps, always lively.", "tags": ["landmark"] },
             { "title": "Covent Garden", "time": "16:15", "blurb": "Street performers, shops — good spot to sit down.", "tags": ["shopping", "landmark"] },
-            { "title": "Last work stretch (Gu & Rato)", "time": "17:00", "blurb": "Their final business hours of the trip, then everyone regroups.", "tags": ["logistics"] },
+            { "title": "Last work stretch", "time": "17:00", "blurb": "Final business hours for whoever is still working, then everyone regroups.", "tags": ["logistics"] },
             { "title": "Carnaby Street & Soho", "time": "18:00", "blurb": "Neon lights, record shops, boutiques.", "tags": ["shopping"] },
             { "title": "Chinatown", "time": "18:45", "blurb": "Snack stop, lanterns, lively energy.", "tags": ["food"] },
             { "title": "Brick Lane wander", "time": "19:30", "blurb": "Street art, vintage shops, right next to Shoreditch.", "tags": ["market", "walk"] },

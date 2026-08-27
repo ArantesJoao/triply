@@ -17,7 +17,10 @@ export const metadata: Metadata = {
     template: '%s · trip.ly',
   },
   description:
-    'A shared trip-planning board — turn a pile of ideas into a day-by-day itinerary, together.',
+    'A shared trip-planning board. Collect ideas, schedule days, and figure it out together.',
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export const viewport: Viewport = {

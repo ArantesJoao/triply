@@ -8,7 +8,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { TagChip } from '@/components/ui/chip';
 import { cn } from '@/lib/cn';
 
-import { useItem, type ItemRecord } from './store';
+import { useItem, useTrip, type ItemRecord } from './store';
 
 export type CardVariant = 'axis' | 'list' | 'tray';
 
@@ -70,6 +70,7 @@ function PlanCardInner({
   dimmed = false,
 }: PlanCardProps) {
   const item = useItem(itemId);
+  const trip = useTrip();
 
   const {
     attributes,
@@ -177,6 +178,7 @@ function PlanCardInner({
               variant === 'tray'
                 ? 'truncate text-[12px] leading-snug'
                 : 'text-[13px] leading-snug',
+              variant === 'axis' && 'truncate',
             )}
           >
             {item.title || (
@@ -193,7 +195,13 @@ function PlanCardInner({
           {variant !== 'tray' && item.tags.length > 0 && (
             <span className="mt-1.5 flex flex-wrap gap-1">
               {item.tags.map((tag) => (
-                <TagChip key={tag} label={tag} size="sm" />
+                <TagChip
+                  key={tag}
+                  label={tag}
+                  tagColors={trip.tagColors}
+                  tagIcons={trip.tagIcons}
+                  size="sm"
+                />
               ))}
             </span>
           )}

@@ -48,3 +48,6 @@ next-env.d.ts
 # local verification artifacts
 axis-check.png
 dark-check.png
+
+# PR-gate build output (see next.config.ts distDir)
+/.next-build/

@@ -12,9 +12,10 @@ import { formatAxisLabel, toAxisMinutes } from '@/lib/time';
 
 import { ColumnHeader } from './column-header';
 import {
+  AXIS_TOP_GAP_PX,
   CARD_GAP_PX,
+  EMPTY_PROMPT_PX,
   PX_PER_MINUTE,
-  TRAY_PX,
   minutesToPx,
 } from './geometry';
 import { PlanCard } from './plan-card';
@@ -30,6 +31,8 @@ export function TimedColumn({
   axis,
   width,
   dropHint,
+  closesGrid = false,
+  tagFilters = [],
   onOpenItem,
   onAddItem,
 }: {
@@ -38,6 +41,9 @@ export function TimedColumn({
   width: number | string;
   /** Live drop preview, when a card is being dragged over this column's axis. */
   dropHint: number | null;
+  /** Last day on the board — draws the rule that closes the grid off. */
+  closesGrid?: boolean;
+  tagFilters?: string[];
   onOpenItem: (itemId: string) => void;
   onAddItem: (columnId: string, time?: string | null) => void;
 }) {
@@ -70,10 +76,8 @@ export function TimedColumn({
   }, []);
 
   const scheduled = useMemo(() => items.filter((item) => item.time), [items]);
-  const tray = useMemo(() => items.filter((item) => !item.time), [items]);
 
   const placements = useMemo(() => {
-    // Sort by axis position so we can compute the gap to the next card.
     const withStart = scheduled
       .map((item) => ({
         item,
@@ -82,57 +86,25 @@ export function TimedColumn({
       .sort((a, b) => a.start - b.start);
 
     const inputs = withStart.map(({ item, start }, i) => {
-      // Gap to the next card's start time. A stale measured height (retained
-      // from a previous narrower lane width) must never push the span past
-      // the next card's start — that splits adjacent-time items into separate
-      // lanes when they should be full-width. Capping at the gap breaks the
-      // cycle: the card gets full width → ResizeObserver fires → fresh
-      // (shorter) measurement replaces the stale one.
-      // The stated durationMin is never capped — explicit durations that
-      // genuinely overlap should be lane-packed.
       const nextStart =
         i + 1 < withStart.length ? withStart[i + 1].start : Infinity;
       const gap = nextStart - start;
 
-      const rawMeasured = measured[item.id] ?? 0;
-      const cappedMeasured =
-        gap > 0 ? Math.min(rawMeasured, gap) : rawMeasured;
-
-      const span = Math.max(
+      const uncapped = Math.max(
         item.durationMin ?? 0,
-        cappedMeasured,
+        measured[item.id] ?? 0,
         MIN_SLOT_PX / PX_PER_MINUTE,
       );
+      // Hard cap: a card never extends past the next card's start time.
+      const span = gap > 0 && gap < Infinity ? Math.min(uncapped, gap) : uncapped;
       return { id: item.id, start, end: start + span };
     });
     return packLanes(inputs);
   }, [scheduled, measured, axis.start]);
 
-  /**
-   * The uncapped render span per card. Lane packing uses a gap-capped span so
-   * adjacent items stay full-width, but the *rendered card height* must use the
-   * full measured height so content is never clipped.
-   */
-  const renderSpans = useMemo(() => {
-    const spans: Record<string, number> = {};
-    for (const item of scheduled) {
-      spans[item.id] = Math.max(
-        item.durationMin ?? 0,
-        measured[item.id] ?? 0,
-        MIN_SLOT_PX / PX_PER_MINUTE,
-      );
-    }
-    return spans;
-  }, [scheduled, measured]);
-
   const { setNodeRef: setAxisRef, isOver: axisOver } = useDroppable({
     id: `axis:${columnId}`,
     data: { type: 'axis', columnId },
-  });
-
-  const { setNodeRef: setTrayRef, isOver: trayOver } = useDroppable({
-    id: `tray:${columnId}`,
-    data: { type: 'tray', columnId },
   });
 
   if (!column) return null;
@@ -151,48 +123,17 @@ export function TimedColumn({
         onAddItem={() => onAddItem(columnId)}
       />
 
-      {/* Fixed height — this must not grow with its contents, or this column's
-          axis would start lower than its neighbours' and the alignment breaks. */}
-      <div
-        ref={setTrayRef}
-        style={{ height: TRAY_PX }}
-        className={cn(
-          'scroll-slim flex flex-col gap-1.5 overflow-y-auto rounded-xl border border-dashed p-1.5 transition-colors duration-150',
-          trayOver
-            ? 'border-brand bg-brand-soft'
-            : 'border-line-strong bg-subtle',
-        )}
-      >
-        <SortableContext
-          items={tray.map((item) => item.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          {tray.length === 0 ? (
-            <p className="m-auto px-2 text-center text-[11px] leading-snug text-faint">
-              {trayOver
-                ? 'Drop to unschedule'
-                : 'No plans yet! Drop a card here to unschedule it'}
-            </p>
-          ) : (
-            tray.map((item) => (
-              <PlanCard
-                key={item.id}
-                itemId={item.id}
-                variant="tray"
-                onOpen={onOpenItem}
-              />
-            ))
-          )}
-        </SortableContext>
-      </div>
-
-      {/* The axis itself. Same height and same origin in every timed column. */}
+      {/* The axis. Same height and same origin in every timed column. */}
       <div
         ref={setAxisRef}
         data-axis-column={columnId}
-        style={{ height: axisHeight }}
+        style={{ height: axisHeight, marginTop: AXIS_TOP_GAP_PX }}
         className={cn(
-          'relative mt-2 border-l transition-colors duration-150',
+          'relative border-l transition-colors duration-150',
+          // Every day is bounded on the left by its own rule and on the right
+          // by the next day's. The last one has no next day, so it draws its
+          // own closing edge — otherwise the grid just frays out.
+          closesGrid && 'border-r',
           axisOver ? 'border-brand bg-brand-soft/30' : 'border-line',
         )}
       >
@@ -209,11 +150,11 @@ export function TimedColumn({
           strategy={verticalListSortingStrategy}
         >
           {placements.map((placement) => {
-            // Never fold lane N back onto lane N % cap — that was the
-            // prototype's trick and it puts two cards in the same place. The
-            // packer's lane count is authoritative; crowded hours get narrow
-            // cards rather than overlapping ones.
             const { lanes, lane } = placement;
+            const placedItem = scheduled.find((s) => s.id === placement.id);
+            const dimByFilter =
+              tagFilters.length > 0 &&
+              (!placedItem || !tagFilters.some((t) => placedItem.tags.includes(t)));
 
             return (
               <PlanCard
@@ -223,18 +164,12 @@ export function TimedColumn({
                 onOpen={onOpenItem}
                 onMeasure={reportHeight}
                 onContentChange={releaseHeight}
+                dimmed={dimByFilter}
                 style={{
                   top: minutesToPx(placement.start - axis.start),
-                  // Use the uncapped render span so the card is never clipped.
-                  // The packing span (placement.end) may be capped at the gap
-                  // to avoid lane splitting, but the visual height must show
-                  // all content.
                   height: Math.max(
                     MIN_SLOT_PX,
-                    minutesToPx(
-                      renderSpans[placement.id] ??
-                        placement.end - placement.start,
-                    ) - CARD_GAP_PX,
+                    minutesToPx(placement.end - placement.start) - CARD_GAP_PX,
                   ),
                   left: `calc(${(lane * 100) / lanes}% + 6px)`,
                   width: `calc(${100 / lanes}% - 10px)`,
@@ -248,7 +183,13 @@ export function TimedColumn({
   );
 }
 
-/** Hour rules. Drawn per column so they read as that column's own grid. */
+/**
+ * Hour rules. Drawn per column, but each one bleeds left across the board's
+ * 12px inter-column gap (`gap-3` in board-canvas) so the rules read as one
+ * continuous line for the whole city rather than stopping short at every
+ * column edge. Bleeding left rather than right means the last timed column
+ * doesn't poke a stub of rule at the list column beside it.
+ */
 function AxisGridLines({ axis }: { axis: AxisWindow }) {
   const lines = useMemo(() => {
     const result: { at: number; major: boolean }[] = [];
@@ -265,7 +206,7 @@ function AxisGridLines({ axis }: { axis: AxisWindow }) {
           key={at}
           style={{ top: minutesToPx(at - axis.start) }}
           className={cn(
-            'absolute inset-x-0 h-px',
+            'absolute -left-3 right-0 h-px',
             major ? 'bg-line' : 'bg-line/50',
           )}
         />
@@ -302,7 +243,21 @@ function DropIndicator({
  */
 function EmptyAxisPrompt({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="absolute inset-x-2 top-8 rounded-xl border border-dashed border-line-strong bg-card/60 backdrop-blur-[1px]">
+    <div
+      // The desktop height comes from geometry rather than a literal here, so
+      // it stays tied to the Backlog's empty state. Phones keep the viewport
+      // measure — there the day is the only thing on screen.
+      className={cn(
+        // Inset equally on all three sides it touches — same step as inset-x.
+        'absolute inset-x-2 top-2 p-10 flex items-center justify-center rounded-xl',
+        'border border-dashed border-line-strong backdrop-blur-[1px]',
+        'min-h-[calc(100vh-120px)] md:min-h-[var(--empty-prompt)]',
+      )}
+      style={{
+        backgroundColor: '#FAFAFE',
+        '--empty-prompt': `${EMPTY_PROMPT_PX}px`,
+      } as React.CSSProperties}
+    >
       <EmptyState
         size="sm"
         title="No timed plans yet"

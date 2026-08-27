@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(next build:*)",
+      "Bash(npx next build:*)",
+      "Bash(npm run build:*)",
+      "Bash(yarn build:*)",
+      "Bash(pnpm build:*)"
+    ],
+    "deny": [
+      "Bash(next dev:*)",
+      "Bash(npx next dev:*)",
+      "Bash(npm run dev:*)",
+      "Bash(yarn dev:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(npm start:*)",
+      "Bash(pkill:*)",
+      "Bash(taskkill:*)",
+      "PowerShell(Stop-Process:*)"
+    ]
+  }
+}

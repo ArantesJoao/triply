@@ -68,7 +68,7 @@ function CityTab({ cityId, active }: { cityId: string; active: boolean }) {
         )}
       >
         <Building2
-          size={17}
+          size={20}
           className={cn('shrink-0', active ? 'text-brand' : 'text-faint')}
         />
 
@@ -127,7 +127,7 @@ function CityTab({ cityId, active }: { cityId: string; active: boolean }) {
         open={confirming}
         onClose={() => setConfirming(false)}
         title={`Delete ${city.title}?`}
-        description={`Every day, list and card in this city goes with it — ${itemCount} in total. This can't be undone.`}
+        description={`Every day, list and card in this city goes with it (${itemCount} in total). This can't be undone.`}
         width="sm"
         footer={
           <>
@@ -181,7 +181,7 @@ function AddCityDialog({
       open={open}
       onClose={onClose}
       title="Add a city"
-      description="It starts with an empty Backlog — add days once you know the dates."
+      description="It starts with an empty Backlog. Add days once you know the dates."
       width="sm"
       footer={
         <>
