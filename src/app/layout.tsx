@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/next';
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 
@@ -18,9 +19,9 @@ export const metadata: Metadata = {
   },
   description:
     'A shared trip-planning board. Collect ideas, schedule days, and figure it out together.',
-  icons: {
-    icon: '/icon.svg',
-  },
+  // No `icons` here on purpose: `src/app/icon.svg` is picked up by the file
+  // convention, which emits the link with a content hash for cache busting.
+  // Naming it here as well would emit a second, unhashed link.
 };
 
 export const viewport: Viewport = {
@@ -50,6 +51,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} antialiased`}>
         <ThemeProvider>{children}</ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
