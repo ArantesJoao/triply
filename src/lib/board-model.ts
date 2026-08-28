@@ -39,6 +39,11 @@ export type CityDTO = {
   id: string;
   key: string;
   title: string;
+  /**
+   * Minutes past midnight where this city's axis opens, or null to inherit the
+   * trip's. Resolve it with `dayStartFor` — null is "inherit", not midnight.
+   */
+  dayStartMin: number | null;
   position: number;
   columns: ColumnDTO[];
 };
@@ -52,6 +57,8 @@ export type BoardDTO = {
   tagColors: Record<string, number>;
   /** Per-tag icon overrides: `{ [tagName]: iconKey }`; `''` means no icon. */
   tagIcons: Record<string, string>;
+  /** Minutes past midnight where the axis opens, for cities that don't override. */
+  dayStartMin: number;
   revision: number;
   updatedAt: string;
   cities: CityDTO[];

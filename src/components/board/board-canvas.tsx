@@ -21,7 +21,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CityIllustration, EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/cn';
-import { axisRangeFor, fromAxisMinutes, snapMinutes } from '@/lib/time';
+import {
+  axisRangeFor,
+  dayStartFor,
+  fromAxisMinutes,
+  snapMinutes,
+} from '@/lib/time';
 
 import { AddColumnDialog } from './add-column-dialog';
 import {
@@ -36,7 +41,7 @@ import {
 import { ItemDialog } from './item-dialog';
 import { AxisGutter, ListColumn } from './list-column';
 import { CardDragOverlay } from './plan-card';
-import { useBoard, useCity, useStore, type ItemRecord } from './store';
+import { useBoard, useCity, useStore, useTrip, type ItemRecord } from './store';
 import { TimedColumn } from './timed-column';
 import { useMediaQuery } from './use-media-query';
 
@@ -54,6 +59,7 @@ export function BoardCanvas({
   addRequest?: number;
 }) {
   const store = useStore();
+  const trip = useTrip();
   const city = useCity(cityId);
   const columns = useBoard((state) => state.columns);
   const items = useBoard((state) => state.items);
@@ -108,11 +114,13 @@ export function BoardCanvas({
   );
 
   /**
-   * ONE axis window for the whole city, derived from every scheduled item in
-   * it. Because each timed column renders against this same window at the same
-   * scale, 19:00 lands at an identical Y in all of them — the single most
-   * important behaviour on the board.
+   * ONE axis window for the whole city, derived from the city's day start and
+   * every scheduled item in it. Because each timed column renders against this
+   * same window at the same scale, 19:00 lands at an identical Y in all of
+   * them — the single most important behaviour on the board.
    */
+  const dayStart = dayStartFor(trip.dayStartMin, city?.dayStartMin);
+
   const axis = useMemo(() => {
     const scheduled = cityColumns
       .filter((column) => column.timed)
@@ -126,8 +134,8 @@ export function BoardCanvas({
             durationMin: item.durationMin,
           })),
       );
-    return axisRangeFor(scheduled);
-  }, [cityColumns, items]);
+    return axisRangeFor(scheduled, dayStart);
+  }, [cityColumns, items, dayStart]);
 
   const axisHeight = minutesToPx(axis.end - axis.start);
 

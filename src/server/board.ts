@@ -10,7 +10,7 @@ import {
 } from '@/lib/ids';
 import { BACKLOG_KEY } from '@/lib/board-model';
 import type { BoardDTO, CityDTO, ColumnDTO, ItemDTO } from '@/lib/board-model';
-import { normaliseTime } from '@/lib/time';
+import { DAY_START_HELP, isValidDayStart, normaliseTime } from '@/lib/time';
 
 import { badRequest, conflict, notFound } from './errors';
 import { touchTrip } from './trips';
@@ -106,12 +106,14 @@ export async function getBoard(tripId: string): Promise<BoardDTO> {
     shareToken: trip.shareToken,
     tagColors: (trip.tagColors as Record<string, number> | null) ?? {},
     tagIcons: (trip.tagIcons as Record<string, string> | null) ?? {},
+    dayStartMin: trip.dayStartMin,
     revision: trip.revision,
     updatedAt: trip.updatedAt.toISOString(),
     cities: cityRows.map((city) => ({
       id: city.id,
       key: city.key,
       title: city.title,
+      dayStartMin: city.dayStartMin,
       position: city.position,
       columns: columnsByCity.get(city.id) ?? [],
     })),
@@ -185,6 +187,8 @@ export async function resolveItem(tripId: string, itemId: string) {
 export type CityInput = {
   title: string;
   key?: string;
+  /** Minutes past midnight; omit or null to follow the trip's day start. */
+  dayStartMin?: number | null;
   /** Omit to get a lone empty Backlog, matching the spec's placeholder cities. */
   columns?: ColumnInput[];
 };
@@ -205,6 +209,11 @@ export async function createCity(tripId: string, input: CityInput) {
   const position = existing.reduce((n, c) => Math.max(n, c.position + 1), 0);
   const cityId = newCityId();
 
+  const dayStartMin = input.dayStartMin ?? null;
+  if (dayStartMin !== null && !isValidDayStart(dayStartMin)) {
+    throw badRequest(DAY_START_HELP);
+  }
+
   const columnInputs = input.columns?.length
     ? input.columns
     : [{ title: 'Backlog', key: BACKLOG_KEY, timed: false, items: [] }];
@@ -212,7 +221,7 @@ export async function createCity(tripId: string, input: CityInput) {
   await db.transaction(async (tx) => {
     await tx
       .insert(cities)
-      .values({ id: cityId, tripId, key, title, position });
+      .values({ id: cityId, tripId, key, title, position, dayStartMin });
 
     await insertColumnTree(tx, cityId, columnInputs);
 
@@ -233,7 +242,7 @@ export async function createCity(tripId: string, input: CityInput) {
 export async function updateCity(
   tripId: string,
   cityRef: string,
-  patch: { title?: string; position?: number },
+  patch: { title?: string; position?: number; dayStartMin?: number | null },
 ) {
   const city = await resolveCity(tripId, cityRef);
   const set: Record<string, unknown> = {};
@@ -244,6 +253,14 @@ export async function updateCity(
     set.title = clean;
   }
   if (patch.position !== undefined) set.position = patch.position;
+  // null is meaningful here — it clears the override and hands the city back
+  // to the trip's day start — so only `undefined` means "leave alone".
+  if (patch.dayStartMin !== undefined) {
+    if (patch.dayStartMin !== null && !isValidDayStart(patch.dayStartMin)) {
+      throw badRequest(DAY_START_HELP);
+    }
+    set.dayStartMin = patch.dayStartMin;
+  }
 
   if (Object.keys(set).length) {
     await db.update(cities).set(set).where(eq(cities.id, city.id));

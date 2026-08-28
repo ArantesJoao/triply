@@ -36,6 +36,16 @@ will restart it.
 
 That is enough. If a change genuinely needs to be seen running, say so and let me look — I have the app open.
 
+## The schema changes one way
+
+Drizzle, controlled migrations, no other way — `npm run db:generate`, commit
+all three files it touches under `drizzle/`, then `npm run db:migrate`. Never
+hand-write a migration file (`migrate` reads the journal, not the directory,
+so it is silently skipped) and never `drizzle-kit push` (it leaves a database
+with no journal, which is how this repo got into trouble once already).
+Production applies the same migrations from `scripts/vercel-build.mjs` on
+deploy. Details in [docs/DEPLOY.md](docs/DEPLOY.md#changing-the-schema).
+
 ## Scope
 
 Do what was asked. A request for a component is not a request for a full verification pass, a refactor of neighbouring code, or a background task queue. Finish the thing, say what you changed, stop.

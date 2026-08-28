@@ -1,7 +1,7 @@
 /**
  * Seeds the real October 2026 trip.
  *
- *   npm run db:push     # create the tables first
+ *   npm run db:migrate  # create the tables first
  *   npm run seed        # then this
  *
  * Idempotent by title: re-running skips a trip that already exists unless you

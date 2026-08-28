@@ -54,9 +54,13 @@ Authorised redirect URI:       https://planwithtriply.com/api/auth/callback/goog
 ### 3. Create the schema
 
 ```bash
-npm run db:push      # push the schema straight to Neon
-# or: npm run db:migrate   to apply the checked-in SQL migration
+npm run db:migrate   # apply the checked-in migrations, in order
 ```
+
+Migrations are the only way this schema ever changes — locally and in
+production. `drizzle-kit push` is deliberately not wired up as a script: a
+pushed database has no migration journal, so the next deploy has nothing to
+apply migrations *from*. See [docs/DEPLOY.md](docs/DEPLOY.md#changing-the-schema).
 
 ### 4. Seed the October 2026 trip
 
@@ -86,8 +90,7 @@ npm run dev
 | `npm run verify` | Time and lane-packing checks (see below) |
 | `npm run verify:axis` | Browser check of the shared axis (needs a running dev server) |
 | `npm run db:generate` | Generate a SQL migration from the schema |
-| `npm run db:push` | Push the schema directly (fastest for dev) |
-| `npm run db:migrate` | Apply migrations |
+| `npm run db:migrate` | Apply the checked-in migrations |
 | `npm run db:studio` | Drizzle Studio |
 | `npm run seed` | Seed the October 2026 trip |
 
@@ -221,7 +224,7 @@ docker run -d --name triply-db \
   -p 5433:5432 postgres:16-alpine
 
 cp .env.example .env.test   # DATABASE_URL=postgresql://postgres:triply@localhost:5433/triply
-DATABASE_URL=... npx drizzle-kit push
+ENV_FILE=.env.test npm run db:migrate
 ENV_FILE=.env.test npm run seed
 ENV_FILE=.env.test npm run verify:axis -- http://localhost:3103
 ```

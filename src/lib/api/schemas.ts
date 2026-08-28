@@ -2,7 +2,12 @@ import { z } from 'zod';
 
 import { TAG_COLOR_NAMES, TAG_PALETTE_SIZE } from '@/lib/tag-colors';
 import { TAG_ICON_KEYS } from '@/lib/tag-icons';
-import { normaliseTime } from '@/lib/time';
+import {
+  DAY_START_HELP,
+  DAY_START_STEP_MINUTES,
+  MAX_DAY_START_MIN,
+  normaliseTime,
+} from '@/lib/time';
 
 /**
  * Field names and types deliberately mirror the build spec's data model, so an
@@ -21,6 +26,19 @@ import { normaliseTime } from '@/lib/time';
 const timeString = z.string().refine((value) => normaliseTime(value) !== null, {
   message: 'Use a valid 24-hour time, e.g. "19:30".',
 });
+
+/**
+ * Where the time axis opens, as minutes past midnight. A number rather than
+ * "HH:MM" because it is a position on the axis, not a clock reading — the axis
+ * already works in minutes, and 240 can't be mistaken for a card's time.
+ */
+const dayStartMin = z
+  .int()
+  .min(0)
+  .max(MAX_DAY_START_MIN)
+  .refine((value) => value % DAY_START_STEP_MINUTES === 0, {
+    message: DAY_START_HELP,
+  });
 
 export const itemInput = z.object({
   title: z.string().max(300).optional(),
@@ -45,6 +63,7 @@ export const cityInput = z.object({
   id: z.string().max(80).optional(),
   key: z.string().max(80).optional(),
   title: z.string().min(1).max(200),
+  dayStartMin: dayStartMin.nullable().optional(),
   columns: z.array(columnInput).max(100).optional(),
 });
 
@@ -61,11 +80,14 @@ export const updateTripBody = z.object({
   tagIcons: z
     .record(z.string(), z.union([z.enum(TAG_ICON_KEYS), z.literal('')]))
     .optional(),
+  dayStartMin: dayStartMin.optional(),
 });
 
 export const updateCityBody = z.object({
   title: z.string().min(1).max(200).optional(),
   position: z.int().min(0).optional(),
+  /** null clears the override and hands the city back to the trip's day start. */
+  dayStartMin: dayStartMin.nullable().optional(),
 });
 
 export const updateColumnBody = z.object({
@@ -157,6 +179,7 @@ export const toolArgs = {
     tripId,
     title: z.string().min(1).max(200).optional(),
     activeCityId: z.string().max(80).nullable().optional(),
+    dayStartMin: dayStartMin.optional(),
   }),
 
   delete_trip: z.strictObject({
@@ -184,11 +207,19 @@ export const toolArgs = {
 
   create_city: z.strictObject({ tripId, ...cityInput.shape }),
 
-  update_city: z.strictObject({
-    tripId,
-    city: ref,
-    title: z.string().min(1).max(200),
-  }),
+  update_city: z
+    .strictObject({
+      tripId,
+      city: ref,
+      title: z.string().min(1).max(200).optional(),
+      dayStartMin: dayStartMin.nullable().optional(),
+    })
+    // Both fields optional, so an agent can call this with nothing to change
+    // and read the `ok` as if something happened. Say so instead.
+    .refine(
+      (args) => args.title !== undefined || args.dayStartMin !== undefined,
+      { message: 'Pass title and/or dayStartMin — there is nothing to change.' },
+    ),
 
   delete_city: z.strictObject({ tripId, city: ref }),
 

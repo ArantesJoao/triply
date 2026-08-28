@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import type { BoardDTO, ItemDTO } from '@/lib/board-model';
+import { DEFAULT_DAY_START_MIN } from '@/lib/time';
 
 /* ------------------------------------------------------------------ *
  * Normalised state.
@@ -35,6 +36,8 @@ export type CityRecord = {
   id: string;
   key: string;
   title: string;
+  /** Minutes past midnight, or null to follow the trip's. See `dayStartFor`. */
+  dayStartMin: number | null;
   columnIds: string[];
 };
 
@@ -47,6 +50,8 @@ export type TripRecord = {
   tagColors: Record<string, number>;
   /** Per-tag icon overrides: `{ [tagName]: iconKey }`; `''` means no icon. */
   tagIcons: Record<string, string>;
+  /** Minutes past midnight where the axis opens, for cities with no override. */
+  dayStartMin: number;
   revision: number;
   isOwner: boolean;
 };
@@ -77,6 +82,7 @@ export function normalise(
       id: city.id,
       key: city.key,
       title: city.title,
+      dayStartMin: city.dayStartMin ?? null,
       columnIds: city.columns.map((column) => column.id),
     };
 
@@ -105,6 +111,7 @@ export function normalise(
       shareToken: board.shareToken,
       tagColors: board.tagColors ?? {},
       tagIcons: board.tagIcons ?? {},
+      dayStartMin: board.dayStartMin ?? DEFAULT_DAY_START_MIN,
       revision: board.revision,
       isOwner: board.isOwner ?? false,
     },
@@ -396,6 +403,43 @@ export class BoardStore {
           body: JSON.stringify({ title }),
         }),
       'rename the trip',
+    );
+  }
+
+  /**
+   * Moves the top of the axis for every city that has not overridden it.
+   *
+   * Nothing on the board moves — cards keep their times — so this is safe to
+   * change at will; it only decides where an untouched day starts drawing.
+   */
+  setTripDayStart(dayStartMin: number) {
+    void this.commit(
+      (state) => ({ ...state, trip: { ...state.trip, dayStartMin } }),
+      () =>
+        request(this.base, {
+          method: 'PATCH',
+          body: JSON.stringify({ dayStartMin }),
+        }),
+      'set the day start',
+    );
+  }
+
+  /** `null` drops the override and hands the city back to the trip's. */
+  setCityDayStart(cityId: string, dayStartMin: number | null) {
+    void this.commit(
+      (state) => ({
+        ...state,
+        cities: {
+          ...state.cities,
+          [cityId]: { ...state.cities[cityId], dayStartMin },
+        },
+      }),
+      () =>
+        request(`${this.base}/cities/${cityId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ dayStartMin }),
+        }),
+      'set the day start',
     );
   }
 

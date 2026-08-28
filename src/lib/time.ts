@@ -16,14 +16,56 @@ export const MINUTES_PER_DAY = 1440;
 /** Drops onto the axis round to this, per the spec's 15-minute snapping. */
 export const SNAP_MINUTES = 15;
 
-/** 04:00 — the default top of the axis. */
-export const DEFAULT_AXIS_START = 4 * 60;
+/**
+ * 08:00 — where a day starts until someone says otherwise.
+ *
+ * Only a default. A trip carries its own `dayStartMin` and any city may
+ * override it, because "the day starts at 08:00" is a claim about the people
+ * on the trip rather than about the clock: the same board is read by someone
+ * already out at 06:00 and by someone who surfaces at 11:00, and a fixed top
+ * of the axis makes one of them scroll past dead hours every time. Nothing is
+ * lost by guessing late — an earlier item pulls the axis up on its own.
+ */
+export const DEFAULT_DAY_START_MIN = 8 * 60;
 
-/** 26:00, i.e. 02:00 the following day — the default bottom of the axis. */
-export const DEFAULT_AXIS_END = 26 * 60;
+/** A day may start anywhere from midnight to noon… */
+export const MAX_DAY_START_MIN = 12 * 60;
+
+/** …on the half hour. Finer than that is fiddly and buys nothing. */
+export const DAY_START_STEP_MINUTES = 30;
+
+/** How much of the clock an axis covers, measured from the day's start. */
+export const AXIS_SPAN_MINUTES = 22 * 60;
 
 /** Never render an axis shorter than this, so a near-empty day still reads. */
 const MIN_AXIS_SPAN = 8 * 60;
+
+/** One wording for every rejection, so the API never contradicts itself. */
+export const DAY_START_HELP =
+  'dayStartMin must be minutes past midnight, on the half hour, between 0 (00:00) and 720 (12:00).';
+
+export function isValidDayStart(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= MAX_DAY_START_MIN &&
+    value % DAY_START_STEP_MINUTES === 0
+  );
+}
+
+/**
+ * The day start in force for a city — its own override, or the trip's.
+ *
+ * `null` on a city means "inherit", not "midnight", so every read of a city's
+ * day start goes through here rather than reaching for the field.
+ */
+export function dayStartFor(
+  tripDayStart: number,
+  cityDayStart: number | null | undefined,
+): number {
+  return cityDayStart ?? tripDayStart;
+}
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -161,16 +203,24 @@ export type Scheduled = {
  * The axis window shared by every timed column in a city.
  *
  * Computed once per city — not per column — because identical geometry across
- * columns is what makes 19:00 line up everywhere. Starts from the default
- * 06:00–02:00 window and only ever grows, so adding an early item shifts every
- * column together rather than desynchronising them.
+ * columns is what makes 19:00 line up everywhere. Opens at the city's day
+ * start, runs {@link AXIS_SPAN_MINUTES} from there, and from then on only ever
+ * grows, so an early item shifts every column together rather than
+ * desynchronising them.
+ *
+ * That growth is why a day start can never hide anything: set it to 10:00 with
+ * an 07:00 breakfast already on the board and the window still opens at 07:00.
+ * It decides where an *empty* day begins, which is the whole of what it is for.
  */
-export function axisRangeFor(items: Scheduled[]): {
+export function axisRangeFor(
+  items: Scheduled[],
+  dayStartMin: number = DEFAULT_DAY_START_MIN,
+): {
   start: number;
   end: number;
 } {
-  let start = DEFAULT_AXIS_START;
-  let end = DEFAULT_AXIS_END;
+  let start = dayStartMin;
+  let end = dayStartMin + AXIS_SPAN_MINUTES;
 
   for (const item of items) {
     const at = toAxisMinutes(item.time, item.dayOffset);
