@@ -45,7 +45,46 @@ import {
  *     --header "Authorization: Bearer triply_…"
  */
 
-const PROTOCOL_VERSION = '2025-06-18';
+/**
+ * Newest first. `initialize` echoes back whatever the client asked for if we
+ * speak it, and otherwise answers with the newest — which is what the spec
+ * tells a server to do when it cannot meet the request.
+ *
+ * Icons arrived in 2025-11-25; older clients simply ignore the field.
+ */
+const SUPPORTED_PROTOCOL_VERSIONS = ['2025-11-25', '2025-06-18'];
+const PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
+
+/**
+ * The route mark, for clients that show an icon beside the server or its
+ * tools. Both files live in `public/` so the URLs are stable and unhashed —
+ * `src/app/icon.svg` is a Next metadata file, served with a cache-busting
+ * query. They must stay reachable without a token: clients fetch icons with no
+ * credentials, and only `/api/mcp` is behind the bearer.
+ *
+ * PNG first because that is the one format an icon-rendering client MUST
+ * support; SVG second for anything that would rather scale it.
+ *
+ * `src` has to be absolute — a client is required to reject anything that is
+ * not an https: or data: URI — so with no NEXT_PUBLIC_APP_URL we send none
+ * at all rather than a relative path nothing will load.
+ */
+const ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
+
+const ICONS = ORIGIN
+  ? [
+      {
+        src: `${ORIGIN}/mcp-icon.png`,
+        mimeType: 'image/png',
+        sizes: ['96x96'],
+      },
+      {
+        src: `${ORIGIN}/mcp-icon.svg`,
+        mimeType: 'image/svg+xml',
+        sizes: ['any'],
+      },
+    ]
+  : undefined;
 
 type JsonRpcRequest = {
   jsonrpc: '2.0';
@@ -559,14 +598,21 @@ async function dispatch(request: JsonRpcRequest, actor: Actor) {
   const { method, params = {}, id } = request;
 
   switch (method) {
-    case 'initialize':
+    case 'initialize': {
+      const asked = params.protocolVersion as string | undefined;
+      const agreed =
+        asked && SUPPORTED_PROTOCOL_VERSIONS.includes(asked)
+          ? asked
+          : PROTOCOL_VERSION;
+
       return rpcResult(id, {
-        protocolVersion: PROTOCOL_VERSION,
+        protocolVersion: agreed,
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: 'trip.ly', version: '1.0.0' },
+        serverInfo: { name: 'trip.ly', version: '1.0.0', icons: ICONS },
         instructions:
           'Trip planning boards. Call list_trips to find a trip, get_board to read one, and import_cities to create whole days at once. Times are 24-hour "HH:MM"; set dayOffset to 1 for anything after midnight.',
       });
+    }
 
     case 'ping':
       return rpcResult(id, {});
@@ -577,6 +623,7 @@ async function dispatch(request: JsonRpcRequest, actor: Actor) {
           name,
           description,
           inputSchema,
+          icons: ICONS,
         })),
       });
 
