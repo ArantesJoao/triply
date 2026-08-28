@@ -13,7 +13,7 @@ import { ThemeToggle } from '@/components/theme';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/cn';
-import { DEFAULT_AXIS_END, DEFAULT_AXIS_START } from '@/lib/time';
+import { AXIS_SPAN_MINUTES, DEFAULT_DAY_START_MIN } from '@/lib/time';
 
 /**
  * Instant shell for the board page.
@@ -21,8 +21,10 @@ import { DEFAULT_AXIS_END, DEFAULT_AXIS_START } from '@/lib/time';
  * Mirrors the real layout — header, cue strip, then the axis gutter and columns
  * — so nothing shifts when the real board mounts. Every dimension here comes
  * from the same constants the board itself renders against: geometry.ts for the
- * column widths and the 192px/hour scale, time.ts for the default 04:00–26:00
- * axis window. The column rail below the cue strip is the mobile-only bar the
+ * column widths and the 192px/hour scale, time.ts for the default 08:00–06:00
+ * axis window. The trip's own day start isn't known until the board loads, so
+ * the skeleton draws the default one; a trip that starts later simply has its
+ * gutter relabelled when the real axis arrives, with no change in geometry. The column rail below the cue strip is the mobile-only bar the
  * board shows under 1024px, which is also where the board drops to one column.
  */
 export default function BoardLoading() {
@@ -137,12 +139,13 @@ export default function BoardLoading() {
  * item pushes it wider.
  * ------------------------------------------------------------------ */
 
-const AXIS_START = DEFAULT_AXIS_START;
-const AXIS_HEIGHT = minutesToPx(DEFAULT_AXIS_END - DEFAULT_AXIS_START);
+const AXIS_START = DEFAULT_DAY_START_MIN;
+const AXIS_END = AXIS_START + AXIS_SPAN_MINUTES;
+const AXIS_HEIGHT = minutesToPx(AXIS_SPAN_MINUTES);
 
 /** Whole hours across the default window, as AxisGutter draws them. */
 const HOUR_TICKS = Array.from(
-  { length: Math.floor((DEFAULT_AXIS_END - AXIS_START) / 60) + 1 },
+  { length: Math.floor(AXIS_SPAN_MINUTES / 60) + 1 },
   (_, i) => AXIS_START + i * 60,
 );
 
@@ -275,7 +278,7 @@ function ColumnHeaderSkeleton({ timed = false }: { timed?: boolean }) {
 /** Half-hour rules, majors on the hour — the board draws these per column. */
 function GridLines() {
   const lines: number[] = [];
-  for (let at = AXIS_START; at <= DEFAULT_AXIS_END; at += 30) lines.push(at);
+  for (let at = AXIS_START; at <= AXIS_END; at += 30) lines.push(at);
 
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0">

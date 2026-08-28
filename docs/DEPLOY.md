@@ -78,6 +78,38 @@ Preview deploys are deliberately excluded. On this plan preview and production
 share one `DATABASE_URL`, so a preview build that migrated would alter the
 production schema from an unmerged branch.
 
+### Changing the schema
+
+**This is the only path. There is no other way the schema changes** — not
+locally, not on production.
+
+```bash
+# 1. edit src/lib/db/schema.ts
+npm run db:generate     # writes drizzle/NNNN_name.sql + meta/NNNN_snapshot.json
+                        #   and appends the entry to meta/_journal.json
+npm run db:migrate      # apply it to your own database
+git add drizzle          # all three files — the .sql alone is not a migration
+```
+
+Then open the PR as usual. Merging to `main` deploys, `vercel-build` runs
+`drizzle-kit migrate` before Next compiles, and the column exists before any
+code that selects it is served. Nothing else to run, nothing to remember at
+deploy time.
+
+Two things to hold on to, because both fail quietly:
+
+**Never hand-write a file into `drizzle/`.** `drizzle-kit migrate` works from
+`meta/_journal.json`, not from the directory listing, so a `.sql` you wrote
+yourself is invisible to it: the deploy reports success and the column never
+appears. Only `db:generate` writes that journal entry and the snapshot the
+*next* migration will diff against.
+
+**Never `drizzle-kit push`.** Beyond what it will drop (below), a pushed
+database ends up with a schema and no journal — so `migrate` has no idea what
+has already been applied. Recovering from that is the baselining dance two
+sections down, and it is not something to walk into on purpose. `push` is not
+wired up as an npm script for this reason.
+
 Order matters more than it looks. Drizzle names every column explicitly in its
 `SELECT`s, so a deploy that ships code ahead of its migration does not degrade
 gracefully — it 500s on every read of that table until the column exists.
@@ -88,16 +120,20 @@ no build, no deploy.
 Runtime. They are separate scopes in the project settings, and a build-scope
 omission stays invisible until the migrate step runs.
 
-**Never point `drizzle-kit push` at production.** `push` diffs the live
-database against the schema and will drop a column the schema no longer
-mentions. It is a dev convenience against a disposable database. The
-production path is `db:generate` (checked in, reviewed as part of the PR) then
-`db:migrate` (applied in order, journal-tracked).
+**What `push` does, for the record.** It diffs the live database against the
+schema and will drop a column the schema no longer mentions — which is why it
+is not used here at all, against production or anything else. The path is
+`db:generate` (checked in, reviewed as part of the PR) then `db:migrate`
+(applied in order, journal-tracked) — the same two commands you ran locally.
 
 Local `npm run build` deliberately does *not* migrate, so the PR check gate
 never touches a database.
 
 ### Baselining a pushed database
+
+Legacy safety net, not part of the flow above. It exists because databases here
+predate the first migration; a database created the documented way never needs
+it.
 
 `drizzle-kit migrate` reads only the newest row of `drizzle.__drizzle_migrations`
 and applies every migration newer than it. A database created with

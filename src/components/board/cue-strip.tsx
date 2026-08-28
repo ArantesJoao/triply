@@ -1,14 +1,25 @@
 'use client';
 
-import { Building2, ChevronDown, Filter, Plus, Tags } from 'lucide-react';
+import {
+  Building2,
+  ChevronDown,
+  Clock,
+  Filter,
+  Plus,
+  Settings2,
+  Tags,
+} from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { TagChip } from '@/components/ui/chip';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/field';
+import { Menu } from '@/components/ui/menu';
 import { cn } from '@/lib/cn';
+import { dayStartFor, formatAxisLabel } from '@/lib/time';
 
+import { DayStartDialog } from './day-start-dialog';
 import {
   useBoard,
   useCity,
@@ -45,6 +56,7 @@ export function CueStrip({
   const [addingCity, setAddingCity] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
+  const [dayStartOpen, setDayStartOpen] = useState(false);
 
   /** All unique tags in the active city. */
   const allTags = useMemo(() => {
@@ -122,18 +134,51 @@ export function CueStrip({
             </button>
           )}
 
-          {/* Manage tags. Unlike the filter toggle this stays put whether or not
-              the city has tags yet: it's a fixed place to look, and the dialog
-              explains where tags come from when there are none. */}
+          {/* Everything that configures the active city, behind one button.
+              Two standing buttons for two rarely-touched dialogs crowded the
+              strip out of the space the tabs and Add to Trip actually need —
+              and a menu is a place new settings can land without the strip
+              growing another control each time. Headed by the city's name
+              because both items act on that city, not on the trip. */}
           {city && (
-            <button
-              type="button"
-              onClick={() => setTagsOpen(true)}
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] border border-line px-3 text-[13px] font-medium text-muted transition-colors hover:border-line-strong hover:text-ink"
-            >
-              <Tags size={14} />
-              Tags
-            </button>
+            <Menu
+              align="end"
+              actions={[
+                { heading: city.title },
+                {
+                  label: 'Tags',
+                  icon: <Tags size={14} />,
+                  onSelect: () => setTagsOpen(true),
+                },
+                {
+                  label: 'Day start',
+                  icon: <Clock size={14} />,
+                  // The value it currently holds, so the common case — "what
+                  // is it set to?" — is answered without opening the dialog.
+                  hint: formatAxisLabel(
+                    dayStartFor(trip.dayStartMin, city.dayStartMin),
+                  ),
+                  onSelect: () => setDayStartOpen(true),
+                },
+              ]}
+              trigger={(props) => (
+                <button
+                  {...props}
+                  type="button"
+                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] border border-line px-3 text-[13px] font-medium text-muted transition-colors hover:border-line-strong hover:text-ink aria-expanded:border-line-strong aria-expanded:text-ink"
+                >
+                  <Settings2 size={14} />
+                  <span className="hidden sm:inline">Settings</span>
+                  <ChevronDown
+                    size={14}
+                    className={cn(
+                      'transition-transform duration-200',
+                      props['aria-expanded'] && 'rotate-180',
+                    )}
+                  />
+                </button>
+              )}
+            />
           )}
 
           {/* Primary action — Add to Trip */}
@@ -200,6 +245,13 @@ export function CueStrip({
 
       <AddCityDialog open={addingCity} onClose={() => setAddingCity(false)} />
       <TagsDialog open={tagsOpen} onClose={() => setTagsOpen(false)} />
+      {city && (
+        <DayStartDialog
+          cityId={city.id}
+          open={dayStartOpen}
+          onClose={() => setDayStartOpen(false)}
+        />
+      )}
     </>
   );
 }

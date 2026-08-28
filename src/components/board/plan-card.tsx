@@ -135,10 +135,24 @@ function PlanCardInner({
         dimmed && 'opacity-40',
       )}
     >
+      {/* The whole card opens the item, not just the words on it.
+          An axis card is as tall as its slot — a 90-minute dinner is a tall
+          box with two lines of text at the top — so a click target that only
+          covered the text left most of the card dead. This sits under the
+          content and takes every click the content does not claim for
+          itself; the content is pointer-transparent, and the drag handle
+          opts back in. */}
+      <button
+        type="button"
+        onClick={() => onOpen(itemId)}
+        aria-label={`Open ${item.title || 'card'}`}
+        className="absolute inset-0 cursor-pointer"
+      />
+
       <div
         ref={contentRef}
         className={cn(
-          'flex gap-1.5',
+          'pointer-events-none relative flex gap-1.5',
           variant === 'tray' ? 'px-2 py-1.5' : 'px-2.5 py-2',
         )}
       >
@@ -148,7 +162,7 @@ function PlanCardInner({
           {...listeners}
           aria-label={`Drag ${item.title || 'card'}`}
           className={cn(
-            'mt-px -ml-1 flex shrink-0 cursor-grab touch-none items-start justify-center',
+            'pointer-events-auto mt-px -ml-1 flex shrink-0 cursor-grab touch-none items-start justify-center',
             'rounded text-faint opacity-50 transition-opacity active:cursor-grabbing',
             'hover:opacity-100 group-hover/card:opacity-100 focus-visible:opacity-100',
             // Comfortable touch target without stealing visual weight.
@@ -158,11 +172,7 @@ function PlanCardInner({
           <GripVertical size={13} />
         </button>
 
-        <button
-          type="button"
-          onClick={() => onOpen(itemId)}
-          className="min-w-0 flex-1 cursor-pointer text-left"
-        >
+        <div className="min-w-0 flex-1 text-left">
           {item.time && variant !== 'list' && (
             <span className="font-display text-[11px] font-medium text-brand tabular-nums">
               {item.time}
@@ -205,7 +215,7 @@ function PlanCardInner({
               ))}
             </span>
           )}
-        </button>
+        </div>
       </div>
     </div>
   );

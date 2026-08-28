@@ -6,8 +6,12 @@
  */
 import { packLanes, type LaneInput } from '../src/lib/layout';
 import {
+  AXIS_SPAN_MINUTES,
+  DEFAULT_DAY_START_MIN,
   axisRangeFor,
+  dayStartFor,
   fromAxisMinutes,
+  isValidDayStart,
   normaliseTime,
   toAxisMinutes,
 } from '../src/lib/time';
@@ -51,8 +55,9 @@ console.log('\nAxis window — one window, shared by every timed column');
 
 const defaultWindow = axisRangeFor([]);
 check(
-  'defaults to 06:00–02:00',
-  defaultWindow.start === 360 && defaultWindow.end === 1560,
+  'defaults to 08:00, a 22-hour window',
+  defaultWindow.start === DEFAULT_DAY_START_MIN &&
+    defaultWindow.end === DEFAULT_DAY_START_MIN + AXIS_SPAN_MINUTES,
   defaultWindow,
 );
 
@@ -66,6 +71,35 @@ const veryEarly = axisRangeFor([
   { time: '04:30', dayOffset: 0, durationMin: null },
 ]);
 check('grows upward for an early departure', veryEarly.start <= 270, veryEarly);
+
+console.log('\nDay start — moves the window, never hides a card');
+
+const lateStart = axisRangeFor([], 10 * 60);
+check(
+  'a 10:00 day opens at 10:00 and keeps its span',
+  lateStart.start === 600 && lateStart.end === 600 + AXIS_SPAN_MINUTES,
+  lateStart,
+);
+
+const earlyItemUnderLateStart = axisRangeFor(
+  [{ time: '07:00', dayOffset: 0, durationMin: null }],
+  10 * 60,
+);
+check(
+  'an 07:00 breakfast still opens the window at 07:00',
+  earlyItemUnderLateStart.start <= 420,
+  earlyItemUnderLateStart,
+);
+
+check("a city's own start wins", dayStartFor(240, 600) === 600);
+check('null inherits the trip, and is not midnight', dayStartFor(240, null) === 240);
+check('0 is a real choice, not "inherit"', dayStartFor(240, 0) === 0);
+
+check('600 (10:00) is accepted', isValidDayStart(600));
+check('630 (10:30) is accepted', isValidDayStart(630));
+check('615 is rejected — half hours only', !isValidDayStart(615));
+check('750 is rejected — past noon', !isValidDayStart(750));
+check('-30 is rejected', !isValidDayStart(-30));
 
 console.log('\nLane packing — cards must never cover each other');
 

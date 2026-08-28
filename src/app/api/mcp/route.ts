@@ -93,6 +93,10 @@ type JsonRpcRequest = {
   params?: Record<string, unknown>;
 };
 
+/** Shared by every tool that takes a day start, so the wording never drifts. */
+const DAY_START_DESCRIPTION =
+  "Minutes past midnight where the day's time axis opens — 480 is 08:00 (the default), 600 is 10:00. On the half hour, 0–720. Set it to when these people actually get going; the axis still grows upward to hold anything earlier.";
+
 const str = (description: string) => ({ type: 'string', description });
 const bool = (description: string) => ({ type: 'boolean', description });
 
@@ -140,6 +144,10 @@ const citySchema = {
   properties: {
     id: str('Stable handle, e.g. "london". Optional.'),
     title: str('City name.'),
+    dayStartMin: {
+      type: ['integer', 'null'],
+      description: `${DAY_START_DESCRIPTION} Null (the default) follows the trip's own day start.`,
+    },
     columns: { type: 'array', items: columnSchema },
   },
 } as const;
@@ -244,7 +252,7 @@ const tools: Tool[] = [
   defineTool({
     name: 'update_trip',
     description:
-      'Rename a trip, and/or choose which city tab the board opens on.',
+      "Rename a trip, choose which city tab the board opens on, and/or set the hour its days start at.",
     inputSchema: {
       type: 'object',
       required: ['tripId'],
@@ -256,11 +264,19 @@ const tools: Tool[] = [
           description:
             'City id the board should open on. Must be a city of this trip.',
         },
+        dayStartMin: {
+          type: 'integer',
+          description: `${DAY_START_DESCRIPTION} Applies to every city that has not set its own.`,
+        },
       },
     },
     schema: toolArgs.update_trip,
-    run: async ({ tripId, title, activeCityId }, actor) => {
-      await updateTrip(await scoped(tripId, actor), { title, activeCityId });
+    run: async ({ tripId, title, activeCityId, dayStartMin }, actor) => {
+      await updateTrip(await scoped(tripId, actor), {
+        title,
+        activeCityId,
+        dayStartMin,
+      });
       return { ok: true };
     },
   }),
@@ -387,19 +403,27 @@ const tools: Tool[] = [
   }),
   defineTool({
     name: 'update_city',
-    description: 'Rename a city.',
+    description:
+      "Rename a city, and/or override the hour its days start at. Useful when one leg of a trip runs on a different clock to the rest — a late-dinner city against an early-start one.",
     inputSchema: {
       type: 'object',
-      required: ['tripId', 'city', 'title'],
+      required: ['tripId', 'city'],
       properties: {
         tripId: str('Trip id.'),
         city: str('City id or handle.'),
         title: str('New name.'),
+        dayStartMin: {
+          type: ['integer', 'null'],
+          description: `${DAY_START_DESCRIPTION} Null drops the override and follows the trip's day start.`,
+        },
       },
     },
     schema: toolArgs.update_city,
-    run: async ({ tripId, city, title }, actor) => ({
-      id: await updateCity(await scoped(tripId, actor), city, { title }),
+    run: async ({ tripId, city, title, dayStartMin }, actor) => ({
+      id: await updateCity(await scoped(tripId, actor), city, {
+        title,
+        dayStartMin,
+      }),
     }),
   }),
   defineTool({

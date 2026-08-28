@@ -10,13 +10,14 @@ import {
   users,
 } from '@/lib/db';
 import { newShareToken, newTripId } from '@/lib/ids';
+import { DAY_START_HELP, isValidDayStart } from '@/lib/time';
 import {
   tagColorIndexByName,
   tagColorNameByIndex,
   type TagColorName,
 } from '@/lib/tag-colors';
 
-import { conflict, notFound } from './errors';
+import { badRequest, conflict, notFound } from './errors';
 
 /**
  * Bumps the trip's revision. Clients poll it to notice other people's edits
@@ -112,6 +113,7 @@ export async function updateTrip(
     activeCityId?: string | null;
     tagColors?: Record<string, number>;
     tagIcons?: Record<string, string>;
+    dayStartMin?: number;
   },
 ) {
   const set: Record<string, unknown> = { updatedAt: new Date() };
@@ -128,6 +130,13 @@ export async function updateTrip(
 
   if (patch.tagIcons !== undefined) {
     set.tagIcons = patch.tagIcons;
+  }
+
+  if (patch.dayStartMin !== undefined) {
+    // 400, matching `updateCity` — the same value rejected for the same
+    // reason must not come back as two different statuses.
+    if (!isValidDayStart(patch.dayStartMin)) throw badRequest(DAY_START_HELP);
+    set.dayStartMin = patch.dayStartMin;
   }
 
   if (patch.activeCityId !== undefined) {

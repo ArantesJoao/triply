@@ -18,7 +18,11 @@ const ENDPOINTS: {
       ['GET', '/api/trips', 'Every trip you belong to.'],
       ['POST', '/api/trips', 'Create a trip. Body: { title }'],
       ['GET', '/api/trips/:tripId', 'The whole board as nested JSON.'],
-      ['PATCH', '/api/trips/:tripId', 'Body: { title?, activeCityId? }'],
+      [
+        'PATCH',
+        '/api/trips/:tripId',
+        'Body: { title?, activeCityId?, dayStartMin? }',
+      ],
       ['DELETE', '/api/trips/:tripId', 'Owner only.'],
       ['GET', '/api/trips/:tripId/revision', 'Cheap change check for polling.'],
     ],
@@ -44,7 +48,11 @@ const ENDPOINTS: {
         'Create one. Accepts a bare title or a full nested city.',
       ],
       ['GET', '/api/trips/:tripId/cities/:city', 'By id or handle.'],
-      ['PATCH', '/api/trips/:tripId/cities/:city', 'Body: { title?, position? }'],
+      [
+        'PATCH',
+        '/api/trips/:tripId/cities/:city',
+        'Body: { title?, position?, dayStartMin? }',
+      ],
       ['DELETE', '/api/trips/:tripId/cities/:city', 'Cascades.'],
     ],
   },
@@ -171,8 +179,8 @@ export default function DocsPage() {
         </Section>
 
         <Section title="Data model">
-          <Code>{`Trip   { id, title, activeCityId, shareToken, revision, cities[] }
-City   { id, key, title, position, columns[] }
+          <Code>{`Trip   { id, title, activeCityId, dayStartMin, shareToken, revision, cities[] }
+City   { id, key, title, dayStartMin, position, columns[] }
 Column { id, key, title, timed, date, position, items[] }
 Item   { id, title, time, dayOffset, durationMin, blurb, tags[], position }`}</Code>
           <ul className="mt-3 flex flex-col gap-2 text-[13px] leading-relaxed text-muted">
@@ -189,6 +197,14 @@ Item   { id, title, time, dayOffset, durationMin, blurb, tags[], position }`}</C
             <li>
               <B>durationMin</B> — optional; renders the card as a block rather
               than a point.
+            </li>
+            <li>
+              <B>dayStartMin</B> — minutes past midnight where the day&apos;s
+              time axis opens: <C>480</C> is 08:00 and is the default,{' '}
+              <C>600</C> is 10:00. On the half hour, <C>0</C>–<C>720</C>. A trip always has one; a city&apos;s
+              is <C>null</C> until it overrides the trip&apos;s. Nothing can hide
+              behind it — the axis still grows upward to hold an earlier item,
+              so it only decides where an empty day begins.
             </li>
             <li>
               <B>key</B> — a stable handle unique within its parent. Cities and

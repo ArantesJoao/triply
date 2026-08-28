@@ -1,5 +1,13 @@
 # Tag Colours — DB Migration
 
+> **Historical record — do not copy the method.** This column was applied with
+> `drizzle-kit push --force`, which is what left the databases here with a
+> schema and no migration journal. The schema now changes one way only:
+> `db:generate` → commit → `db:migrate`. See
+> [docs/DEPLOY.md](../../docs/DEPLOY.md#changing-the-schema). The "Deploy
+> safety" note below is also out of date: Vercel runs `drizzle-kit migrate`,
+> not `push`.
+
 ## What changed
 
 Added a `tag_colors` column to the `trip` table:

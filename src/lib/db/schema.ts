@@ -94,6 +94,12 @@ export const trips = pgTable('trip', {
    * tag name; an empty-string value means "no icon".
    */
   tagIcons: jsonb('tag_icons').$type<Record<string, string>>().default({}),
+  /**
+   * Minutes past midnight where the time axis opens — 480 (08:00) by default,
+   * mirroring DEFAULT_DAY_START_MIN in src/lib/time.ts. A city may override
+   * it; see `city.day_start_min`.
+   */
+  dayStartMin: integer('day_start_min').notNull().default(480),
   /** Bumped on every mutation; clients poll this to detect other people's edits. */
   revision: integer('revision').notNull().default(1),
   createdAt: timestamp('created_at', { withTimezone: true })
@@ -181,6 +187,13 @@ export const cities = pgTable(
     /** Stable human-readable handle, unique within the trip, e.g. "london". */
     key: text('key').notNull(),
     title: text('title').notNull(),
+    /**
+     * Overrides the trip's day start for this city alone. Null means inherit —
+     * which is not the same as 0, so nothing may read this field directly.
+     * A fortnight in Lisbon and a fortnight in Tokyo rarely start at the same
+     * hour, and the axis top is what makes a day's empty stretch readable.
+     */
+    dayStartMin: integer('day_start_min'),
     position: integer('position').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
