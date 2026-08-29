@@ -9,7 +9,7 @@ import {
 } from 'react';
 
 import type { BoardDTO, ItemDTO } from '@/lib/board-model';
-import { DEFAULT_DAY_START_MIN } from '@/lib/time';
+import { DEFAULT_DAY_START_MIN, DEFAULT_DURATION_MIN } from '@/lib/time';
 
 /* ------------------------------------------------------------------ *
  * Normalised state.
@@ -136,6 +136,9 @@ export class BoardStore {
   /** Outstanding mutations — polling stands down while this is non-zero. */
   private inFlight = 0;
 
+  /** Open sheets holding the poll off. See {@link holdSync}. */
+  private holds = 0;
+
   /**
    * Temp-to-real ID redirects. When a new card is created optimistically with a
    * temporary ID, `useItem(tempId)` keeps working after the server assigns the
@@ -203,6 +206,13 @@ export class BoardStore {
     apply: (state: BoardState) => BoardState,
     persist: () => Promise<unknown>,
     description: string,
+    /**
+     * Hands the failure back to the caller instead of surfacing it on the
+     * board's save strip. Used by the explicit-commit sheets, which show the
+     * failure inside themselves next to the values that are still unsaved —
+     * two reports of one failure, in two places, is one too many.
+     */
+    rethrow = false,
   ) {
     const previous = this.state;
     this.state = apply(previous);
@@ -217,6 +227,14 @@ export class BoardStore {
     } catch (error) {
       this.state = previous;
       this.emit();
+
+      if (rethrow) {
+        this.setStatus({ kind: 'idle' });
+        throw error instanceof Error
+          ? error
+          : new Error(`Couldn't ${description}.`);
+      }
+
       this.setStatus({
         kind: 'error',
         message:
@@ -230,6 +248,33 @@ export class BoardStore {
 
   get isBusy() {
     return this.inFlight > 0;
+  }
+
+  /**
+   * Holds the poll off while a sheet has unsaved edits.
+   *
+   * The board polls for collaborators' changes every few seconds and replaces
+   * records wholesale when the revision moves. That is right for a board being
+   * read, and wrong underneath a modal being typed into: an explicit-commit
+   * sheet loads a record, edits a draft of it, and writes the whole thing on
+   * Save — so a refetch landing in between would leave the draft describing a
+   * version of the record that no longer exists.
+   *
+   * Returns its own release. Calling it twice is a no-op, so the caller can
+   * hand it straight to an effect's cleanup without guarding.
+   */
+  holdSync() {
+    this.holds += 1;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.holds -= 1;
+    };
+  }
+
+  get isHeld() {
+    return this.holds > 0;
   }
 
   dismissError() {
@@ -607,7 +652,7 @@ export class BoardStore {
       title: '',
       time: null,
       dayOffset: 0,
-      durationMin: null,
+      durationMin: DEFAULT_DURATION_MIN,
       blurb: '',
       tags: [],
       position: this.state.columns[columnId]?.itemIds.length ?? 0,
@@ -754,6 +799,41 @@ export class BoardStore {
     );
   }
 
+  /**
+   * The explicit-commit counterpart to {@link patchItem}: one write for the
+   * whole draft, and a promise the caller can wait on.
+   *
+   * `patchItem` is the right shape for the board itself, where every control
+   * writes as it is touched and a failure belongs on the save strip. The
+   * activity sheet is the other model — nothing is written until Save — so it
+   * needs to know whether the write landed before it decides to close.
+   */
+  async saveItem(itemId: string, patch: Partial<ItemDTO>): Promise<void> {
+    const resolved = this.resolveId(itemId);
+    if (!this.state.items[resolved]) {
+      throw new Error('That activity is no longer on the board.');
+    }
+
+    await this.commit(
+      (state) => ({
+        ...state,
+        items: {
+          ...state.items,
+          [resolved]: { ...state.items[resolved], ...patch },
+        },
+      }),
+      async () => {
+        const realId = await this.awaitRealId(itemId);
+        return request(`${this.base}/items/${realId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(patch),
+        });
+      },
+      'save the card',
+      true,
+    );
+  }
+
   deleteItem(itemId: string) {
     const resolved = this.resolveId(itemId);
     void this.commit(
@@ -881,13 +961,18 @@ export class BoardStore {
     let stopped = false;
 
     const tick = async () => {
-      if (stopped || this.isBusy || document.hidden) return;
+      if (stopped || this.isBusy || this.isHeld || document.hidden) return;
       try {
         const { revision } = await request<{ revision: number }>(
           `${this.base}/revision`,
           { method: 'GET' },
         );
-        if (!stopped && !this.isBusy && revision !== this.state.trip.revision) {
+        if (
+          !stopped &&
+          !this.isBusy &&
+          !this.isHeld &&
+          revision !== this.state.trip.revision
+        ) {
           await this.refetch();
         }
       } catch {

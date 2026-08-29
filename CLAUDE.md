@@ -14,19 +14,18 @@ The dev server is mine and it is already running. When you start your own:
 
 **Do not delete `.next/`** unless I ask, or unless you already broke it.
 
-### The one exception: opening a PR
+### No exceptions, including opening a PR
 
-`npm run build` is allowed at exactly one moment — the check gate in
-`/just-create-pr` and `/create-and-push-pr`, immediately before the PR goes up.
-A red build must never reach `main`, and that is the only place it gets caught
-locally.
+There used to be one: the check gate in `/just-create-pr` and
+`/create-and-push-pr`. It is gone. On this machine `next build` wedges before
+it compiles anything — it contends with my dev server for `.next/`, which
+Windows locks — so it eats a long stretch of wall clock, breaks the dev server
+it collided with, and reports nothing either way.
 
-This is still the only time. Not mid-edit, not to verify a change, not "while
-I'm here anyway". If you are not about to open a PR, the rule above applies
-unchanged.
-
-It will disturb the dev server I have running, so say so when you run it — I
-will restart it.
+The build now runs in exactly one place: Vercel, from
+`scripts/vercel-build.mjs`, on deploy. That means nothing compiles a change
+before it lands on `main`, so a PR report must say plainly that the deploy is
+the first real build.
 
 ### Verify like this instead
 

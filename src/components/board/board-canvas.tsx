@@ -70,7 +70,14 @@ export function BoardCanvas({
   );
   const [openItemId, setOpenItemId] = useState<string | null>(null);
   const [addingColumn, setAddingColumn] = useState(false);
-  const [autoFocusItemId, setAutoFocusItemId] = useState<string | null>(null);
+  /**
+   * A card the board has been asked for but has not created. Nothing exists
+   * server-side until the sheet's Save — see `handleAddItem`.
+   */
+  const [pendingItem, setPendingItem] = useState<{
+    columnId: string;
+    time: string | null;
+  } | null>(null);
 
   const compact = useMediaQuery('(max-width: 1023px)');
 
@@ -252,15 +259,18 @@ export function BoardCanvas({
     );
   };
 
-  const handleAddItem = useCallback(
-    (columnId: string, time: string | null = null) => {
-      const id = store.addItem(columnId, { time });
-      // New cards open straight into title editing.
-      setAutoFocusItemId(id);
-      setOpenItemId(id);
-    },
-    [store],
-  );
+  /**
+   * Opens an empty sheet rather than creating a card.
+   *
+   * This used to call `store.addItem` on the spot, which meant pressing `+`
+   * put a blank, titleless card on everyone's board and left it there if you
+   * changed your mind. The record is now created by the sheet's Save; until
+   * then the card exists only as this request.
+   */
+  const handleAddItem = useCallback((columnId: string, time: string | null = null) => {
+    setOpenItemId(null);
+    setPendingItem({ columnId, time });
+  }, []);
 
   // Cue-strip "Add to Trip" — creates a blank card in the first timed column
   // (or the first list column if none are timed).
@@ -410,10 +420,16 @@ export function BoardCanvas({
 
       <ItemDialog
         itemId={openItemId}
-        autoFocusTitle={openItemId === autoFocusItemId}
+        pending={pendingItem}
+        // Saving a new card hands the sheet the record it just made, so it
+        // stays open on it rather than closing at the moment of creation.
+        onCreated={(id) => {
+          setPendingItem(null);
+          setOpenItemId(id);
+        }}
         onClose={() => {
           setOpenItemId(null);
-          setAutoFocusItemId(null);
+          setPendingItem(null);
         }}
       />
 
