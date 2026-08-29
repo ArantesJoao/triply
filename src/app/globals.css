@@ -111,6 +111,11 @@
   --shadow-float: var(--shadow-2);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* The drawer's curve: slow out of the gate, long settle. Slower than
+     --ease-out on purpose — a sheet travelling the height of the screen needs
+     more runway than a panel fading 8px into place. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @layer base {
@@ -248,6 +253,69 @@
 @keyframes skeleton-shimmer {
   0%   { background-position: 100% 0; }
   100% { background-position: -100% 0; }
+}
+
+/* --------------------------------------------------------------------- *
+ * Rendered notes.
+ *
+ * Tailwind's preflight strips list markers and heading margins, which is right
+ * for an app and wrong for the one place that renders prose. These rules are
+ * scoped to the note renderer rather than reintroduced globally, and the tag
+ * set they style is closed — see `lib/markdown.ts`.
+ * --------------------------------------------------------------------- */
+.prose-note {
+  font-size: 14px;
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+.prose-note p {
+  margin: 0 0 10px;
+}
+.prose-note ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  list-style: disc;
+}
+.prose-note > :last-child {
+  margin-bottom: 0;
+}
+.prose-note li {
+  margin: 2px 0;
+}
+.prose-note strong {
+  font-weight: 700;
+}
+.prose-note del {
+  color: var(--text-tertiary);
+}
+.prose-note a {
+  color: var(--brand-active);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-note a:hover {
+  color: var(--brand);
+}
+
+/* Checklists lose the bullet and gain a box the note's own text controls. */
+.prose-note ul.is-checklist {
+  padding-left: 0;
+  list-style: none;
+}
+.prose-note li.is-task {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.prose-note li.is-task input[type='checkbox'] {
+  margin-top: 5px;
+  flex-shrink: 0;
+  accent-color: var(--brand);
+  pointer-events: none;
+}
+.prose-note .is-done {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
 }
 
 @media (prefers-reduced-motion: reduce) {

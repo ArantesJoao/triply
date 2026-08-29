@@ -68,17 +68,21 @@ single hyphen. `TRPL-7` + "Fix cross-midnight card ordering" gives
 `trpl-7-fix-cross-midnight-card-ordering`. Uncommitted changes carry over with
 the switch. If already on a feature branch, keep it.
 
-## 6. Checks (all three must pass)
+## 6. Checks (both must pass)
 
 ```bash
-npm run typecheck && npm run lint && npm run build
+npm run typecheck && npm run lint
 ```
 
-This is the one moment the build is allowed to run — the operator otherwise
-keeps their own dev server and does manual QA in a separate terminal, so do not
-run `npm run dev` or build mid-edit on the way here.
+**Do not open a PR on a failure.** Fix it, or report it and stop.
 
-**Do not open a PR on a red build.** Fix it, or report the failure and stop.
+**Never run `npm run build` here, or anywhere.** It used to be this skill's
+third check and it has been removed: on this machine it wedges before it
+compiles anything — it contends with the operator's dev server for `.next/`,
+which Windows locks — so it burns a long stretch of wall clock, breaks the dev
+server it collided with, and still tells you nothing. The real build runs on
+Vercel at deploy. The operator keeps their own dev server and does manual QA in
+a separate terminal, so do not run `npm run dev` either.
 
 If the diff touches `src/components/board/geometry.ts` or `board-canvas.tsx`,
 also run `npm run verify` — it is pure logic and cheap. `npm run verify:axis`

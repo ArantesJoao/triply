@@ -56,16 +56,22 @@ If on `main`, create the branch before committing:
 git switch -c trpl-<n>-<kebab-description>
 ```
 
-## 6. Checks (all three must pass)
+## 6. Checks (both must pass)
 
 ```bash
-npm run typecheck && npm run lint && npm run build
+npm run typecheck && npm run lint
 ```
 
-This is the one moment the build is allowed to run — the operator otherwise
-keeps their own dev server and does manual QA in a separate terminal.
+**Do not proceed on a failure.** Report it and stop.
 
-**Do not proceed on a red build.** Report the failure and stop.
+**Never run `npm run build` here, or anywhere.** It used to be this skill's
+third check and it has been removed: on this machine it wedges before it
+compiles anything — it contends with the operator's dev server for `.next/`,
+which Windows locks — so it burns a long stretch of wall clock, breaks the dev
+server it collided with, and still tells you nothing. The real build now runs
+in exactly one place: Vercel, from `scripts/vercel-build.mjs`, on deploy. That
+is the gate that catches a broken build, and it catches it after the merge
+rather than before — so say so in the final report and watch the deploy.
 
 If the diff touches `src/components/board/geometry.ts` or `board-canvas.tsx`,
 also run `npm run verify`. `npm run verify:axis` needs a running dev server and
@@ -101,8 +107,8 @@ EOF
 
 ## 9. Wait for the remote checks
 
-A green local build is not the same as the host building it. A missing
-production env var, for instance, fails only there. Wait for the real check:
+Nothing has compiled this change yet — the local gate is types and lint only.
+Vercel's build on deploy is the first and only thing that does. Wait for it:
 
 ```bash
 gh pr checks --watch
@@ -113,8 +119,9 @@ gh pr checks --watch
   merge with `--admin` to get around it.
 - No checks configured at all (command reports none): say so explicitly in the
   final report, then continue. Triply has no CI wired up yet, so this is the
-  expected path today — the operator should know the merge went in on the local
-  build alone.
+  expected path today — and since the local gate no longer builds either, the
+  operator needs to hear plainly that nothing has compiled this change and the
+  Vercel deploy is where that first happens.
 
 ## 10. Squash merge
 

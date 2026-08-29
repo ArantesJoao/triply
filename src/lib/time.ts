@@ -244,3 +244,133 @@ export function hourTicks(start: number, end: number): number[] {
   for (let at = Math.ceil(start / 60) * 60; at <= end; at += 60) ticks.push(at);
   return ticks;
 }
+
+/**
+ * "Fri 9" — the short form the date chips wear.
+ *
+ * Display only, unlike {@link formatDayTitle}, which becomes a stored column
+ * title and so has to be pinned to one locale for everyone on the trip. These
+ * two are rendered locally and never persisted, so they are free to read the
+ * way a date reads — but they are still pinned, to `en-GB`, because the board
+ * writes its dates day-before-month everywhere else.
+ */
+export function formatDateShort(value: string): string {
+  const date = parseISODate(value);
+  const weekday = date.toLocaleDateString('en-GB', { weekday: 'short' });
+  return `${weekday} ${date.getDate()}`;
+}
+
+/** "Friday 9 October 2026" — the line that resolves a chip tap in full. */
+export function formatDateLong(value: string): string {
+  return parseISODate(value).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+/** "October 2026" — the calendar's month heading. */
+export function formatMonthTitle(value: string): string {
+  return parseISODate(value).toLocaleDateString('en-GB', {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+/**
+ * The Monday-first grid a month is drawn on: always six weeks of dates, so the
+ * calendar never changes height as you page through it.
+ */
+export function monthGrid(monthAnchor: string): string[] {
+  const anchor = parseISODate(monthAnchor);
+  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  // getDay() is Sunday-first; the grid is Monday-first.
+  const lead = (first.getDay() + 6) % 7;
+
+  const start = new Date(first);
+  start.setDate(first.getDate() - lead);
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    return toISODate(day);
+  });
+}
+
+/** Same year and month? Used to grey out the grid's leading and trailing days. */
+export function isSameMonth(a: string, b: string): boolean {
+  return a.slice(0, 7) === b.slice(0, 7);
+}
+
+/** `YYYY-MM-DD` shifted by whole months, clamped to the month's last day. */
+export function addMonthsISO(value: string, months: number): string {
+  const date = parseISODate(value);
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + months);
+  const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  date.setDate(Math.min(day, lastDay));
+  return toISODate(date);
+}
+
+/* --------------------------------------------------------------------- *
+ * Clock arithmetic for the time picker.
+ * --------------------------------------------------------------------- */
+
+/** The stepper's grain: every tap is half an hour. */
+export const TIME_STEP_MINUTES = 30;
+
+/**
+ * Every activity takes some time. "None" was an option once and it only ever
+ * meant "nobody said" — which drew a zero-height block on the axis and made a
+ * real half hour look like an omission. New cards start here instead.
+ */
+export const DEFAULT_DURATION_MIN = 30;
+
+/** Offered when the trip has nothing scheduled to learn from yet. */
+export const FALLBACK_TIMES = ['09:00', '12:00', '14:00', '19:00'];
+
+/**
+ * Steps a time by whole minutes, wrapping the clock — 23:30 → 00:00 and back.
+ * Wrapping rather than clamping is what makes the stepper usable for a
+ * late-night activity without a trip through the whole day.
+ */
+export function stepTime(time: string, minutes: number): string {
+  const [hours, mins] = time.split(':').map(Number);
+  const total = hours * 60 + mins + minutes;
+  const wrapped = ((total % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return `${String(Math.floor(wrapped / 60)).padStart(2, '0')}:${String(
+    wrapped % 60,
+  ).padStart(2, '0')}`;
+}
+
+/**
+ * The five times a trip actually starts things at, most-used first, padded out
+ * of {@link FALLBACK_TIMES} when there isn't enough history to tell.
+ *
+ * Computed from what is already scheduled rather than from a fixed list,
+ * because "the times this trip uses" is a property of the trip: a city break
+ * and a festival weekend do not share a 09:00.
+ */
+export function commonStartTimes(
+  scheduled: (string | null | undefined)[],
+  limit = 5,
+): string[] {
+  const counts = new Map<string, number>();
+  for (const time of scheduled) {
+    if (!isValidTime(time)) continue;
+    counts.set(time, (counts.get(time) ?? 0) + 1);
+  }
+
+  const ranked = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([time]) => time);
+
+  for (const fallback of FALLBACK_TIMES) {
+    if (ranked.length >= limit) break;
+    if (!ranked.includes(fallback)) ranked.push(fallback);
+  }
+
+  return ranked.slice(0, limit).sort();
+}

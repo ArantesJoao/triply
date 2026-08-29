@@ -5,7 +5,13 @@ import { forwardRef } from 'react';
 
 import { cn } from '@/lib/cn';
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'soft';
+type Variant =
+  | 'primary'
+  | 'secondary'
+  | 'ghost'
+  | 'danger'
+  | 'destructive'
+  | 'soft';
 type Size = 'sm' | 'md' | 'lg';
 
 const VARIANTS: Record<Variant, string> = {
@@ -16,8 +22,13 @@ const VARIANTS: Record<Variant, string> = {
     'bg-card text-ink border border-line hover:border-line-strong hover:bg-subtle',
   ghost: 'text-muted hover:text-ink hover:bg-subtle',
   soft: 'bg-brand-soft text-brand-on-soft hover:brightness-95 dark:hover:brightness-125',
+  // Outlined — the shape a Delete sitting quietly in a footer wants.
   danger:
     'bg-card text-danger border border-danger-border hover:bg-danger-soft',
+  // Filled — the confirmation itself, where the destructive act is the
+  // primary action of the panel and has to read as one.
+  destructive:
+    'bg-danger text-brand-contrast border-0 hover:bg-danger hover:brightness-110 active:brightness-95',
 };
 
 const SIZES: Record<Size, string> = {
