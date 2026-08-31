@@ -1,20 +1,24 @@
-import { createHash } from 'node:crypto';
-
 import { and, eq } from 'drizzle-orm';
 
 import { auth } from '@/auth';
 import { apiTokens, db, tripMembers, trips } from '@/lib/db';
+import { OAUTH_ACCESS_PREFIX } from '@/lib/ids';
 
 import { forbidden, notFound, unauthorized } from './errors';
+import { hashToken } from './hash';
+import { grantForAccessToken } from './oauth';
+
+export { hashToken };
 
 export type Actor = {
   userId: string;
-  /** How the caller proved who they are — a browser session or an API token. */
-  via: 'session' | 'token';
+  /**
+   * How the caller proved who they are — a browser session, a personal API
+   * token, or an OAuth grant a connected app holds. All three carry exactly
+   * the same access; the tag is for logging and for error wording.
+   */
+  via: 'session' | 'token' | 'oauth';
 };
-
-export const hashToken = (token: string) =>
-  createHash('sha256').update(token).digest('hex');
 
 /** The signed-in browser user, if there is one. */
 export async function sessionActor(): Promise<Actor | null> {
@@ -23,17 +27,26 @@ export async function sessionActor(): Promise<Actor | null> {
   return { userId: session.user.id, via: 'session' };
 }
 
+/** Pulls the credential out of `Authorization: Bearer …`, if there is one. */
+export function bearerToken(request: Request): string | null {
+  const header = request.headers.get('authorization');
+  if (!header?.toLowerCase().startsWith('bearer ')) return null;
+  return header.slice(7).trim() || null;
+}
+
 /**
  * Resolves `Authorization: Bearer triply_…` to the user who owns that token.
  * Google OAuth can't be completed by an agent, so this is how Claude — via
  * REST or MCP — acts on someone's trips, with exactly that person's access.
+ *
+ * An access token minted by the OAuth flow arrives the same way and is handled
+ * by `oauthActor`; the two are told apart by prefix, so a bearer costs one
+ * query rather than two.
  */
 export async function tokenActor(request: Request): Promise<Actor | null> {
-  const header = request.headers.get('authorization');
-  if (!header?.toLowerCase().startsWith('bearer ')) return null;
-
-  const presented = header.slice(7).trim();
+  const presented = bearerToken(request);
   if (!presented) return null;
+  if (presented.startsWith(OAUTH_ACCESS_PREFIX)) return null;
 
   const [row] = await db
     .select({ id: apiTokens.id, userId: apiTokens.userId })
@@ -53,12 +66,29 @@ export async function tokenActor(request: Request): Promise<Actor | null> {
   return { userId: row.userId, via: 'token' };
 }
 
+/**
+ * Resolves an OAuth access token — the credential a connected app gets by
+ * sending someone through the consent screen, rather than by being handed a
+ * token that person pasted out of Settings.
+ */
+export async function oauthActor(request: Request): Promise<Actor | null> {
+  const presented = bearerToken(request);
+  if (!presented?.startsWith(OAUTH_ACCESS_PREFIX)) return null;
+
+  const grant = await grantForAccessToken(presented);
+  return grant ? { userId: grant.userId, via: 'oauth' } : null;
+}
+
 /** Bearer token first so an API call from a logged-in browser still acts as the token. */
 export async function requireActor(request: Request): Promise<Actor> {
-  const actor = (await tokenActor(request)) ?? (await sessionActor());
+  const actor =
+    (await oauthActor(request)) ??
+    (await tokenActor(request)) ??
+    (await sessionActor());
+
   if (!actor) {
     throw unauthorized(
-      'Sign in, or send an API token as "Authorization: Bearer triply_…".',
+      'Sign in, connect an app through OAuth, or send an API token as "Authorization: Bearer triply_…".',
     );
   }
   return actor;

@@ -3,7 +3,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { apiTokens, db } from '@/lib/db';
 import { newApiToken, newTokenId } from '@/lib/ids';
 
-import { hashToken } from './access';
+import { hashToken } from './hash';
 import { notFound } from './errors';
 
 export async function listTokens(userId: string) {

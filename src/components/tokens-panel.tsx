@@ -61,8 +61,9 @@ export function TokensPanel({ initial }: { initial: Token[] }) {
           API tokens
         </h2>
         <p className="mt-1 text-[13px] leading-relaxed text-muted">
-          For the REST API and the MCP server. A token acts with your access —
-          it can reach every trip you&apos;re a member of, and nothing else.
+          For the REST API, and for MCP clients that cannot open a browser to
+          sign in. A token acts with your access — it can reach every trip
+          you&apos;re a member of, and nothing else.
         </p>
       </header>
 

@@ -284,9 +284,26 @@ export function isEmptyNote(source: string | null | undefined): boolean {
 }
 
 /**
- * The constructs the editor deliberately can't render. Not used to reject
- * anything in the UI — they degrade to literal text there — but the MCP
- * surface needs to name them rather than accept them silently.
+ * One wording for what a note may contain, so the API schema and the MCP tool
+ * description can't drift apart. Written at an agent, because that is who
+ * mostly reads it: the editor teaches the same subset by having buttons for it.
+ */
+export const NOTE_HELP =
+  'Markdown, on a deliberately small subset: paragraphs, single newlines, ' +
+  '**bold**, _italic_, ~~strikethrough~~, "- " bullet lists, "- [ ] " and ' +
+  '"- [x] " checklists, and [links](https://example.com). Bare URLs are ' +
+  'linked automatically. Headings, images, tables, code blocks, block quotes ' +
+  'and raw HTML are not supported — they are rejected rather than dropped, so ' +
+  'nothing you write is silently discarded or left showing as raw characters.';
+
+/**
+ * The constructs the editor deliberately can't render.
+ *
+ * The UI lets these through as literal text, because someone typing a `#` at
+ * the start of a line has typed a `#` and should see one. An agent writing the
+ * note through the API has no such intent and no way to notice the result, so
+ * the API rejects them and says which — see `noteMarkdown` in
+ * `lib/api/schemas.ts`.
  */
 export function unsupportedConstructs(source: string): string[] {
   const found = new Set<string>();

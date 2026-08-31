@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { NOTE_HELP, unsupportedConstructs } from '@/lib/markdown';
 import { TAG_COLOR_NAMES, TAG_PALETTE_SIZE } from '@/lib/tag-colors';
 import { TAG_ICON_KEYS } from '@/lib/tag-icons';
 import {
@@ -40,12 +41,34 @@ const dayStartMin = z
     message: DAY_START_HELP,
   });
 
+/**
+ * The note, checked against the same subset the reader renders.
+ *
+ * Rejecting rather than stripping, for the reason `timeString` rejects "99:99"
+ * rather than normalising it away: an agent that has its formatting quietly
+ * removed has no way to notice, and would keep writing the same thing. A `#`
+ * heading survives storage perfectly well and then renders as the characters
+ * `# Day one` on the card, which is worse than an error — the write looked
+ * like it worked.
+ */
+const noteMarkdown = z
+  .string()
+  .max(4000)
+  .superRefine((value, ctx) => {
+    const found = unsupportedConstructs(value);
+    if (found.length === 0) return;
+    ctx.addIssue({
+      code: 'custom',
+      message: `Remove the ${found.join(', ')}. ${NOTE_HELP}`,
+    });
+  });
+
 export const itemInput = z.object({
   title: z.string().max(300).optional(),
   time: timeString.nullable().optional(),
   dayOffset: z.int().min(0).max(6).optional(),
   durationMin: z.int().min(0).max(24 * 60).nullable().optional(),
-  blurb: z.string().max(4000).optional(),
+  blurb: noteMarkdown.optional(),
   tags: z.array(z.string().max(60)).max(30).optional(),
 });
 
