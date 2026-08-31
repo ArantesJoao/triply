@@ -17,12 +17,29 @@ export const newColumnId = () => `col_${nano()}`;
 export const newItemId = () => `item_${nano()}`;
 export const newInviteId = () => `inv_${nano()}`;
 export const newTokenId = () => `tok_${nano()}`;
+export const newOAuthClientId = () => `tcl_${nano()}`;
+export const newGrantId = () => `grant_${nano()}`;
 
 /** Secret half of a /join/<token> link. */
 export const newShareToken = () => nanoShort() + nanoShort();
 
 /** Plaintext API token. Shown once, then only its hash is kept. */
 export const newApiToken = () => `triply_${nanoToken()}`;
+
+/**
+ * OAuth secrets. Every one is stored only as a SHA-256 hash, like the API
+ * tokens above.
+ *
+ * The prefixes are load-bearing, not decoration: `tokenActor` routes a bearer
+ * to the right table by looking at it, so an access token can be told from a
+ * personal token in one query rather than two. Keep them distinct from the
+ * bare `triply_` of a personal token, which is the fallback.
+ */
+export const newOAuthSecret = () => `triply_cs_${nanoToken()}`;
+export const newAuthCode = () => `triply_ac_${nanoToken()}`;
+export const OAUTH_ACCESS_PREFIX = 'triply_at_';
+export const newAccessToken = () => `${OAUTH_ACCESS_PREFIX}${nanoToken()}`;
+export const newRefreshToken = () => `triply_rt_${nanoToken()}`;
 
 /**
  * Human-readable handle for a city or column, unique within its parent.

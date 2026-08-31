@@ -1,39 +1,45 @@
 # trip.ly — working agreements
 
-## Never run builds, dev servers, or the app
+## Never run the dev server or the app
 
-**Do not run `next build`, `next dev`, `npm run build`, `npm run dev`, `npm start`, or anything else that compiles or serves this project.** Not to verify a change, not to "make sure it still works", not in the background.
+**Do not run `next dev`, `npm run dev`, `npm start`, or anything else that
+serves this project.** Not to verify a change, not to "make sure it still
+works", not in the background.
 
-The dev server is mine and it is already running. When you start your own:
-
-- `next build` writes into the same `.next/` the dev server is serving from and corrupts it, so my browser goes blank
-- killing "a" dev server kills *mine*
-- builds here take many minutes and produce nothing either of us needed
+The dev server is mine, it is already running, and it is always on **port
+3103** — the same port as `npm run dev`, `npm start`, `AUTH_URL` and
+`NEXT_PUBLIC_APP_URL`. There is one port for this app and that is it. Starting
+your own server collides with mine on it, and killing "a" dev server kills
+*mine*.
 
 **Do not kill node processes.** You cannot tell yours from mine.
 
-**Do not delete `.next/`** unless I ask, or unless you already broke it.
+### `npm run build` is fine now, and it is the PR gate again
 
-### No exceptions, including opening a PR
+It used to hang forever, which is why it was banned. `next build` and the dev
+server shared `.next/`, and a build begins by emptying that directory: the dev
+server held `.next/trace` open, the unlink failed with `EPERM`, Windows left
+the file delete-pending, and Next's `recursiveDelete` retried that error
+forever — its backoff counter is post-incremented, so its own retry bound never
+trips. The build hung before compiling anything, printed nothing, never exited,
+and corrupted the `.next/` my browser was being served from.
 
-There used to be one: the check gate in `/just-create-pr` and
-`/create-and-push-pr`. It is gone. On this machine `next build` wedges before
-it compiles anything — it contends with my dev server for `.next/`, which
-Windows locks — so it eats a long stretch of wall clock, breaks the dev server
-it collided with, and reports nothing either way.
+`next.config.ts` now picks `distDir` by phase: the dev server keeps `.next`, a
+local `next build` and `next start` get `.next-build` to themselves, and Vercel
+still uses `.next`. A local build cannot touch anything of mine any more, so
+`/just-create-pr` and `/create-and-push-pr` run it as a check again.
 
-The build now runs in exactly one place: Vercel, from
-`scripts/vercel-build.mjs`, on deploy. That means nothing compiles a change
-before it lands on `main`, so a PR report must say plainly that the deploy is
-the first real build.
+It takes about half a minute on this machine — the old ban was about the
+hang, not the cost. Run it at the gate anyway, not after every edit.
 
-### Verify like this instead
+### Verify a change in progress like this
 
 - `npx tsc --noEmit` for types
 - `npx eslint <changed files>` for lint
 - Read the code
 
-That is enough. If a change genuinely needs to be seen running, say so and let me look — I have the app open.
+That is enough while you are still working. If a change genuinely needs to be
+seen running, say so and let me look — I have the app open.
 
 ## The schema changes one way
 

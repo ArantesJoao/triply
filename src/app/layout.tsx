@@ -12,13 +12,31 @@ const inter = Inter({
   display: 'swap',
 });
 
+const description =
+  'A shared trip-planning board. Collect ideas, schedule days, and figure it out together.';
+
 export const metadata: Metadata = {
+  // Needed to resolve `opengraph-image`/`twitter-image` into the absolute
+  // URLs link previews (WhatsApp, iMessage, Slack, X, ...) require.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://planwithtriply.com'),
   title: {
     default: 'trip.ly',
     template: '%s · trip.ly',
   },
-  description:
-    'A shared trip-planning board. Collect ideas, schedule days, and figure it out together.',
+  description,
+  openGraph: {
+    title: 'trip.ly',
+    description,
+    siteName: 'trip.ly',
+    type: 'website',
+    // The image itself comes from `src/app/opengraph-image.tsx` — that file
+    // convention wires up `og:image` automatically, no need to list it here.
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'trip.ly',
+    description,
+  },
   // No `icons` here on purpose: `src/app/icon.svg` is picked up by the file
   // convention, which emits the link with a content hash for cache busting.
   // Naming it here as well would emit a second, unhashed link.

@@ -7,6 +7,16 @@ import { Button } from '@/components/ui/button';
 
 export const metadata: Metadata = { title: 'Sign in' };
 
+/**
+ * Where to go once signed in. Only ever a path on this origin: `next` comes
+ * from the query string, so an absolute or protocol-relative value would make
+ * this page an open redirect — one that hands somebody a trip.ly sign-in
+ * screen and then drops them on another site.
+ */
+function safeNext(next: string | undefined) {
+  return next?.startsWith('/') && !next.startsWith('//') ? next : '/';
+}
+
 export default async function SignInPage({
   searchParams,
 }: {
@@ -14,8 +24,21 @@ export default async function SignInPage({
 }) {
   const session = await auth();
   const { next } = await searchParams;
+  const destination = safeNext(next);
 
-  if (session?.user) redirect(next || '/');
+  /*
+   * `session.user.id`, not `session.user` — the same test every other page in
+   * the app makes, and it has to stay that way.
+   *
+   * A session can carry a user with no id: `session.user.id` is filled in from
+   * the token's `sub` claim, and a token without one leaves it undefined. When
+   * this page treated that as signed in, it sent people straight back to the
+   * page that had just decided they were signed out, and the two bounced off
+   * each other until the browser gave up on a white screen. Requiring the id
+   * here ends it — a session that cannot identify anybody gets the sign-in
+   * button, which is the one thing that fixes it.
+   */
+  if (session?.user?.id) redirect(destination);
 
   return (
     <main className="grid min-h-dvh place-items-center px-6 py-12">
@@ -34,7 +57,7 @@ export default async function SignInPage({
         <form
           action={async () => {
             'use server';
-            await signIn('google', { redirectTo: next || '/' });
+            await signIn('google', { redirectTo: destination });
           }}
         >
           <Button type="submit" variant="primary" size="lg" className="w-full">

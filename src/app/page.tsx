@@ -2,8 +2,9 @@ import { MapPin, Plus, Users } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { auth, signOut } from '@/auth';
+import { auth, signIn, signOut } from '@/auth';
 import { Logo, RouteMark } from '@/components/brand/route-mark';
+import { LandingPage } from '@/components/marketing/landing-page';
 import { ThemeToggle } from '@/components/theme';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -11,7 +12,15 @@ import { createTrip, listTripsForUser } from '@/server/trips';
 
 export default async function TripsPage() {
   const session = await auth();
-  if (!session?.user?.id) redirect('/signin');
+
+  if (!session?.user?.id) {
+    async function signInWithGoogle() {
+      'use server';
+      await signIn('google', { redirectTo: '/' });
+    }
+
+    return <LandingPage signInAction={signInWithGoogle} />;
+  }
 
   const trips = await listTripsForUser(session.user.id);
 

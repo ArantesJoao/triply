@@ -68,21 +68,25 @@ single hyphen. `TRPL-7` + "Fix cross-midnight card ordering" gives
 `trpl-7-fix-cross-midnight-card-ordering`. Uncommitted changes carry over with
 the switch. If already on a feature branch, keep it.
 
-## 6. Checks (both must pass)
+## 6. Checks (all three must pass)
 
 ```bash
-npm run typecheck && npm run lint
+npm run typecheck && npm run lint && npm run build
 ```
 
 **Do not open a PR on a failure.** Fix it, or report it and stop.
 
-**Never run `npm run build` here, or anywhere.** It used to be this skill's
-third check and it has been removed: on this machine it wedges before it
-compiles anything — it contends with the operator's dev server for `.next/`,
-which Windows locks — so it burns a long stretch of wall clock, breaks the dev
-server it collided with, and still tells you nothing. The real build runs on
-Vercel at deploy. The operator keeps their own dev server and does manual QA in
-a separate terminal, so do not run `npm run dev` either.
+`npm run build` is safe to run again, and it is the only thing here that
+actually compiles the change. It used to hang forever — it shared `.next/` with
+the operator's dev server, and a build starts by emptying that directory, so it
+wedged on a file the server held open and broke the server it collided with.
+`next.config.ts` now gives a local build `.next-build` and leaves `.next` to
+dev, so the two never meet. It takes about half a minute, so run it here at
+the gate rather than after every edit.
+
+**Still never run `npm run dev` or `npm start`.** The operator's dev server is
+already up on port 3103 — the app's only port — and it is where they do manual
+QA.
 
 If the diff touches `src/components/board/geometry.ts` or `board-canvas.tsx`,
 also run `npm run verify` — it is pure logic and cheap. `npm run verify:axis`

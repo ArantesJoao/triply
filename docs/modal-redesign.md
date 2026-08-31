@@ -227,11 +227,19 @@ experience are unaffected. Worth revisiting on its own.
 existing `blurb` column. Today's plain-text notes are already valid Markdown,
 so there is no migration and no schema change.
 
-**MCP needs nothing for this change.** Because `blurb` stays a plain string
-that is neither stripped nor converted, the MCP read → write round-trip is
-already byte-identical. The spec's stricter ask — reject unsupported constructs
-with an error naming them, rather than accepting them silently — is a change to
-the MCP tool surface, not to these two modals, and is listed below as follow-up.
+**The MCP surface speaks the same Markdown.** `blurb` stays a plain string that
+is neither stripped nor converted, so the read → write round-trip is
+byte-identical. On top of that, `NOTE_HELP` in `lib/markdown.ts` is the single
+wording of what a note may contain: the MCP tool schema puts it in the `blurb`
+description so an agent knows the field is Markdown and which subset, and
+`noteMarkdown` in `lib/api/schemas.ts` rejects anything outside it by name.
+
+Rejecting rather than stripping is the same call `timeString` already makes for
+`"99:99"`. The UI lets a stray `#` through as literal text, because someone who
+typed a `#` meant to type one and can see the result. An agent has neither the
+intent nor the feedback loop, and a heading that stores fine and then renders
+as the characters `# Day one` is worse than an error — the write looked like it
+worked. Note this applies to the REST API too, since the schema is shared.
 
 **Move on mobile closes the sheet.** The spec says a move closes the sheet when
 the destination column is off-screen. Rather than measure that, the rule is:
@@ -324,7 +332,6 @@ for a variant rather than painting over one.
   the type choice is now two cards on desktop and two 56px rows on mobile,
   which the generic chip group can't express. Delete it, or give it the new
   shape, when the remaining modals move across.
-- The MCP allow-list validator that rejects unsupported Markdown by name.
 - `TimePicker` replacing the start-time control in `day-start-dialog.tsx`
   (`ui/time-field.tsx` stays until then).
 - The note's WYSIWYG surface.

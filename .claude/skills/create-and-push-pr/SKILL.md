@@ -56,22 +56,25 @@ If on `main`, create the branch before committing:
 git switch -c trpl-<n>-<kebab-description>
 ```
 
-## 6. Checks (both must pass)
+## 6. Checks (all three must pass)
 
 ```bash
-npm run typecheck && npm run lint
+npm run typecheck && npm run lint && npm run build
 ```
 
 **Do not proceed on a failure.** Report it and stop.
 
-**Never run `npm run build` here, or anywhere.** It used to be this skill's
-third check and it has been removed: on this machine it wedges before it
-compiles anything — it contends with the operator's dev server for `.next/`,
-which Windows locks — so it burns a long stretch of wall clock, breaks the dev
-server it collided with, and still tells you nothing. The real build now runs
-in exactly one place: Vercel, from `scripts/vercel-build.mjs`, on deploy. That
-is the gate that catches a broken build, and it catches it after the merge
-rather than before — so say so in the final report and watch the deploy.
+`npm run build` is safe to run again, and it is the only thing here that
+actually compiles the change. It used to hang forever — it shared `.next/` with
+the operator's dev server, and a build starts by emptying that directory, so it
+wedged on a file the server held open and broke the server it collided with.
+`next.config.ts` now gives a local build `.next-build` and leaves `.next` to
+dev, so the two never meet. It takes about half a minute, so run it here at
+the gate rather than after every edit.
+
+**Still never run `npm run dev` or `npm start`.** The operator's dev server is
+already up on port 3103 — the app's only port — and it is where they do manual
+QA.
 
 If the diff touches `src/components/board/geometry.ts` or `board-canvas.tsx`,
 also run `npm run verify`. `npm run verify:axis` needs a running dev server and
@@ -107,8 +110,9 @@ EOF
 
 ## 9. Wait for the remote checks
 
-Nothing has compiled this change yet — the local gate is types and lint only.
-Vercel's build on deploy is the first and only thing that does. Wait for it:
+The change already compiled at step 6, so this is confirmation rather than the
+first build: Vercel's preview deployment runs `next build` on its own machine,
+and GitGuardian scans for secrets. Wait for all of them:
 
 ```bash
 gh pr checks --watch
@@ -117,11 +121,13 @@ gh pr checks --watch
 - Passes: continue to step 10.
 - Fails: **stop.** Report which check failed and why. Do not merge, and do not
   merge with `--admin` to get around it.
-- No checks configured at all (command reports none): say so explicitly in the
-  final report, then continue. Triply has no CI wired up yet, so this is the
-  expected path today — and since the local gate no longer builds either, the
-  operator needs to hear plainly that nothing has compiled this change and the
-  Vercel deploy is where that first happens.
+- Fails on **Vercel** when the local build was green: that is usually an
+  environment difference rather than a code error — a missing env var, or a
+  migration that has not been applied. Read the deployment log it links to
+  before changing any code, and never merge past it.
+- No checks reported at all: say so explicitly in the final report, then
+  continue. The local build at step 6 is a real gate, so silence here no longer
+  means the change is uncompiled.
 
 ## 10. Squash merge
 

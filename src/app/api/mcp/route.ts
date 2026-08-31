@@ -2,6 +2,7 @@ import { ZodError, type ZodType, type z } from 'zod';
 
 import { toolArgs, type ToolName } from '@/lib/api/schemas';
 import { TAG_COLOR_NAMES, tagColorNameByIndex } from '@/lib/tag-colors';
+import { NOTE_HELP } from '@/lib/markdown';
 import { TAG_ICON_KEYS } from '@/lib/tag-icons';
 import {
   requireActor,
@@ -9,6 +10,7 @@ import {
   requireTripOwner,
   type Actor,
 } from '@/server/access';
+import { originFor } from '@/server/oauth';
 import {
   createCity,
   createColumn,
@@ -116,7 +118,7 @@ const itemProperties = {
     type: ['integer', 'null'],
     description: 'Optional length in minutes; renders the card as a block.',
   },
-  blurb: str('Short free-text note.'),
+  blurb: str(`Free-text note on the card. ${NOTE_HELP}`),
   tags: {
     type: 'array',
     items: { type: 'string' },
@@ -681,14 +683,29 @@ async function dispatch(request: JsonRpcRequest, actor: Actor) {
   }
 }
 
+/**
+ * What turns a 401 into a connection instead of a dead end.
+ *
+ * RFC 9728 section 5.1: a protected resource that refuses a request says where
+ * its metadata lives, and the client follows that to the authorization server,
+ * registers itself, and opens a browser — all without anyone pasting anything.
+ * Omit this header and an unauthenticated client has nowhere to go.
+ */
+function wwwAuthenticate(req: Request): Record<string, string> {
+  const metadata = `${originFor(req)}/.well-known/oauth-protected-resource/api/mcp`;
+  return {
+    'WWW-Authenticate': `Bearer resource_metadata="${metadata}", error="invalid_token"`,
+  };
+}
+
 export async function POST(req: Request) {
   let actor: Actor;
   try {
     actor = await requireActor(req);
   } catch {
     return Response.json(
-      rpcError(null, -32001, 'Send an API token as "Authorization: Bearer triply_…".'),
-      { status: 401 },
+      rpcError(null, -32001, 'Connect through OAuth, or send an API token as "Authorization: Bearer triply_…".'),
+      { status: 401, headers: wwwAuthenticate(req) },
     );
   }
 
@@ -719,8 +736,12 @@ export async function GET(req: Request) {
     await requireActor(req);
   } catch {
     return Response.json(
-      { error: 'unauthorized', message: 'Send Authorization: Bearer triply_…' },
-      { status: 401 },
+      {
+        error: 'unauthorized',
+        message:
+          'Connect through OAuth, or send Authorization: Bearer triply_…',
+      },
+      { status: 401, headers: wwwAuthenticate(req) },
     );
   }
   return Response.json({

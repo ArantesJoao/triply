@@ -1,6 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <!-- trip.ly favicon — periwinkle dot trail + destination -->
-  <rect width="32" height="32" rx="7" fill="#6366F1"/>
+  <!--
+    trip.ly route mark — periwinkle dot trail + destination.
+
+    Square on purpose, unlike src/app/icon.svg. A client that shows this beside
+    a server rounds and masks the tile itself, so rounding it here only leaves
+    transparent corners to composite over whatever that client puts behind
+    them — which reads as a pale halo on a dark connector list.
+  -->
+  <rect width="32" height="32" fill="#6366F1"/>
   <!-- Trail dots, rising and dipping -->
   <circle cx="5" cy="22" r="1.5" fill="#fff" opacity="0.5"/>
   <circle cx="9" cy="19" r="1.6" fill="#fff" opacity="0.6"/>

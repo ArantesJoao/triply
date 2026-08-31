@@ -49,5 +49,5 @@ next-env.d.ts
 axis-check.png
 dark-check.png
 
-# PR-gate build output (see next.config.ts distDir)
+# local build + `next start` output (see next.config.ts distDir)
 /.next-build/

@@ -15,7 +15,8 @@
     "db:studio": "drizzle-kit studio",
     "seed": "tsx scripts/seed.ts",
     "verify": "tsx scripts/verify-core.ts",
-    "verify:axis": "tsx scripts/verify-axis.ts"
+    "verify:axis": "tsx scripts/verify-axis.ts",
+    "verify:oauth": "tsx scripts/verify-oauth.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

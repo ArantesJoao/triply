@@ -176,6 +176,39 @@ export default function DocsPage() {
           </p>
           <Code>{`curl https://planwithtriply.com/api/trips \\
   -H "Authorization: Bearer triply_…"`}</Code>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted">
+            An OAuth access token works everywhere a personal one does — see{' '}
+            <C>OAuth</C> below. Either way the caller acts as one person, with
+            exactly that person&apos;s access.
+          </p>
+        </Section>
+
+        <Section title="OAuth">
+          <p className="text-[13.5px] leading-relaxed text-muted">
+            trip.ly is its own OAuth 2.1 authorization server, so a client can
+            connect itself: it registers, opens a browser, and the person
+            approves it — nobody handles a credential by hand. Discovery starts
+            at the resource metadata, which <C>/api/mcp</C> also names in the{' '}
+            <C>WWW-Authenticate</C> header of its 401.
+          </p>
+          <Code>{`GET  /.well-known/oauth-protected-resource
+GET  /.well-known/oauth-authorization-server
+POST /api/oauth/register     dynamic client registration (RFC 7591)
+GET  /oauth/authorize        consent, then a code
+POST /api/oauth/token        authorization_code | refresh_token
+POST /api/oauth/revoke       RFC 7009`}</Code>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted">
+            PKCE with <C>S256</C> is required, <C>code</C> is the only response
+            type, and there is one scope — <C>triply</C> — because there is one
+            thing to grant. Connected apps are listed and revocable under{' '}
+            <Link
+              href="/settings"
+              className="text-brand underline underline-offset-2"
+            >
+              Settings
+            </Link>
+            .
+          </p>
         </Section>
 
         <Section title="Data model">
@@ -284,8 +317,9 @@ Item   { id, title, time, dayOffset, durationMin, blurb, tags[], position }`}</C
           <p className="text-[13.5px] leading-relaxed text-muted">
             The same operations are exposed as MCP tools at{' '}
             <C>/api/mcp</C>, so Claude can edit the board directly instead of a
-            human relaying requests. Step-by-step setup, with the command ready
-            to copy, is on{' '}
+            human relaying requests. The URL is the whole configuration — the
+            client discovers the OAuth endpoints from it and sends you off to
+            sign in. Step-by-step setup is on{' '}
             <Link
               href="/settings"
               className="text-brand underline underline-offset-2"
@@ -294,8 +328,7 @@ Item   { id, title, time, dayOffset, durationMin, blurb, tags[], position }`}</C
             </Link>
             .
           </p>
-          <Code>{`claude mcp add --transport http triply https://planwithtriply.com/api/mcp \\
-  --header "Authorization: Bearer triply_…"`}</Code>
+          <Code>{`claude mcp add --transport http triply https://planwithtriply.com/api/mcp`}</Code>
           <p className="mt-3 text-[13px] leading-relaxed text-muted">
             Tools: <C>list_trips</C>, <C>get_board</C>, <C>get_city</C>,{' '}
             <C>create_trip</C>, <C>update_trip</C>, <C>delete_trip</C>,{' '}

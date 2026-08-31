@@ -5,9 +5,11 @@ import { redirect } from 'next/navigation';
 
 import { auth, signOut } from '@/auth';
 import { Logo } from '@/components/brand/route-mark';
+import { ConnectionsPanel } from '@/components/connections-panel';
 import { McpSetup } from '@/components/mcp-setup';
 import { ThemeToggle } from '@/components/theme';
 import { TokensPanel } from '@/components/tokens-panel';
+import { listConnections } from '@/server/oauth';
 import { listTokens } from '@/server/tokens';
 
 export const metadata: Metadata = { title: 'Settings' };
@@ -16,7 +18,10 @@ export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/signin');
 
-  const tokens = await listTokens(session.user.id);
+  const [tokens, connections] = await Promise.all([
+    listTokens(session.user.id),
+    listConnections(session.user.id),
+  ]);
 
   return (
     <div className="min-h-dvh bg-page">
@@ -81,6 +86,16 @@ export default async function SettingsPage() {
           </div>
         </section>
 
+        <McpSetup />
+
+        <ConnectionsPanel
+          initial={connections.map((connection) => ({
+            ...connection,
+            lastUsedAt: connection.lastUsedAt?.toISOString() ?? null,
+            createdAt: connection.createdAt.toISOString(),
+          }))}
+        />
+
         <TokensPanel
           initial={tokens.map((token) => ({
             ...token,
@@ -88,8 +103,6 @@ export default async function SettingsPage() {
             createdAt: token.createdAt.toISOString(),
           }))}
         />
-
-        <McpSetup />
 
         <p className="text-center text-[13px] text-muted">
           Building against the API?{' '}

@@ -177,6 +177,101 @@ export const apiTokens = pgTable(
   (t) => [index('api_token_user_idx').on(t.userId)],
 );
 
+/* ------------------------------------------------------------------ *
+ * OAuth 2.1 authorization server
+ *
+ * What lets a client say "connect to trip.ly" and get a token by sending the
+ * user through Google, instead of the user minting an `api_token` by hand and
+ * pasting it into a header field. Same access either way — a grant resolves to
+ * a user id exactly as a personal token does.
+ *
+ * Client ──< Grant >── User        (one row per connected app, per person)
+ * Client ──< Code  >── User        (seconds-long, single use, then deleted)
+ * ------------------------------------------------------------------ */
+
+/**
+ * A client that registered itself through RFC 7591 dynamic registration.
+ *
+ * Registration is open, because that is the only way a client the user has
+ * just installed can connect without us pre-provisioning it. An unused row is
+ * inert: it cannot get a token without a person completing the consent screen,
+ * and `redirectUris` is fixed at registration, so a code can only ever be
+ * delivered back to where that client said it lives.
+ */
+export const oauthClients = pgTable('oauth_client', {
+  /** The `client_id`. Public — it travels in authorization URLs. */
+  id: text('id').primaryKey(),
+  /** Null for a public client, which authenticates with PKCE alone. */
+  secretHash: text('secret_hash'),
+  name: text('name').notNull(),
+  redirectUris: jsonb('redirect_uris').$type<string[]>().notNull(),
+  /** Shown on the consent screen so people can see who is asking. */
+  logoUri: text('logo_uri'),
+  clientUri: text('client_uri'),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * An authorization code in flight — issued when someone presses Allow and
+ * redeemed seconds later at the token endpoint.
+ *
+ * The row *is* the single-use guarantee: redemption deletes it in the same
+ * statement that reads it, so a replayed code finds nothing. Only the hash is
+ * stored, so the code in a redirect URL in someone's browser history is not
+ * enough to mint a token even before it expires.
+ */
+export const oauthCodes = pgTable('oauth_code', {
+  codeHash: text('code_hash').primaryKey(),
+  clientId: text('client_id')
+    .notNull()
+    .references(() => oauthClients.id, { onDelete: 'cascade' }),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  /** Must match the one presented at the token endpoint, per RFC 6749. */
+  redirectUri: text('redirect_uri').notNull(),
+  /** PKCE S256 challenge. Required — there is no `plain` path. */
+  codeChallenge: text('code_challenge').notNull(),
+  scope: text('scope').notNull(),
+  /** RFC 8707 audience, echoed back so we can refuse a code minted for elsewhere. */
+  resource: text('resource'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+});
+
+/**
+ * One connected app, for one person: the thing Settings lists and revokes.
+ *
+ * Access and refresh tokens live on the same row and rotate in place, so
+ * revoking is a single delete and there is no way to leave a live refresh
+ * token behind an expired access token.
+ */
+export const oauthGrants = pgTable(
+  'oauth_grant',
+  {
+    id: text('id').primaryKey(),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => oauthClients.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accessTokenHash: text('access_token_hash').notNull().unique(),
+    accessExpiresAt: timestamp('access_expires_at', {
+      withTimezone: true,
+    }).notNull(),
+    /** Rotated on every refresh; null once a client stops asking for one. */
+    refreshTokenHash: text('refresh_token_hash').unique(),
+    scope: text('scope').notNull(),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index('oauth_grant_user_idx').on(t.userId)],
+);
+
 export const cities = pgTable(
   'city',
   {
