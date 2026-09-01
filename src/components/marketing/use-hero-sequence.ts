@@ -7,26 +7,30 @@ import { useEffect, useRef, useState } from 'react';
  * text reveals word by word, then the confirmation line, then the connecting
  * dots and chevron, then the Fri cards land in time order. Each stage starts
  * once the previous one has had time to finish, landing the whole sequence
- * around 2.6s.
+ * around 3.4s.
  */
 const WORDS_TEXT =
   'Friday in London: Borough Market first thing, then Tate Modern for a couple of hours. Suggest somewhere for lunch nearby and put it on the board.';
 export const WORDS = WORDS_TEXT.split(' ');
 
-const WORD_STAGGER = 24;
-const WORD_DUR = 200;
+const WORD_STAGGER = 32;
+const WORD_DUR = 260;
 const WORDS_END = (WORDS.length - 1) * WORD_STAGGER + WORD_DUR;
-const DONE_LINE_START = WORDS_END + 140;
-const DONE_LINE_DUR = 300;
-const DOTS_START = DONE_LINE_START + DONE_LINE_DUR + 160;
-const DOT_STAGGER = 90;
-const DOT_DUR = 220;
-const CHEVRON_START = DOTS_START + DOT_STAGGER * 2 + 150;
-const CHEVRON_DUR = 220;
-const CARDS_START = CHEVRON_START + CHEVRON_DUR + 160;
-const CARD_STAGGER = 120;
-const CARD_DUR = 260;
-const SEQUENCE_MS = CARDS_START + CARD_STAGGER * 2 + CARD_DUR + 100;
+const DONE_LINE_START = WORDS_END + 180;
+const DONE_LINE_DUR = 380;
+const DOTS_START = DONE_LINE_START + DONE_LINE_DUR + 200;
+const DOT_STAGGER = 120;
+const DOT_DUR = 280;
+const CHEVRON_START = DOTS_START + DOT_STAGGER * 2 + 200;
+const CHEVRON_DUR = 280;
+// The board preview isn't downstream of the chat bubble — it starts settling
+// into place as soon as the visual mounts, in parallel with the words above,
+// rather than waiting for the whole "written to the board" sequence to finish.
+const CARDS_START = 130;
+const CARD_STAGGER = 150;
+const CARD_DUR = 340;
+const SEQUENCE_MS =
+  Math.max(CARDS_START + CARD_STAGGER * 2 + CARD_DUR, CHEVRON_START + CHEVRON_DUR) + 100;
 
 export const heroTiming = {
   WORD_STAGGER,
