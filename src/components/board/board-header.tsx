@@ -41,6 +41,7 @@ export function BoardHeader({ user }: { user: { name: string; image: string | nu
             value={trip.title}
             onCommit={(title) => title && store.renameTrip(title)}
             ariaLabel="Trip name"
+            fitContent
             className="font-display text-[15px] leading-tight font-bold"
           />
         </div>

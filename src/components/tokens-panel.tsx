@@ -62,7 +62,7 @@ export function TokensPanel({ initial }: { initial: Token[] }) {
         </h2>
         <p className="mt-1 text-[13px] leading-relaxed text-muted">
           For the REST API, and for MCP clients that cannot open a browser to
-          sign in. A token acts with your access — it can reach every trip
+          sign in. A token acts with your access. It can reach every trip
           you&apos;re a member of, and nothing else.
         </p>
       </header>
@@ -71,7 +71,7 @@ export function TokensPanel({ initial }: { initial: Token[] }) {
         {revealed && (
           <div className="rounded-xl border border-brand bg-brand-soft p-3.5">
             <p className="mb-2 text-[12.5px] font-medium text-brand-on-soft">
-              Copy this now — it won&apos;t be shown again.
+              Copy this now. It won&apos;t be shown again.
             </p>
             <div className="flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded-lg bg-card px-2.5 py-2 font-mono text-[12px]">

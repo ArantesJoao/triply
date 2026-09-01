@@ -5,7 +5,8 @@
       "Bash(npx next build:*)",
       "Bash(npm run build:*)",
       "Bash(yarn build:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(gh pr merge:*)"
     ],
     "deny": [
       "Bash(next dev:*)",
