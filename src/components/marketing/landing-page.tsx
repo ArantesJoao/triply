@@ -2,18 +2,19 @@
 
 import { AlignLeft, Building2, Inbox, Smartphone, Users } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 import { Logo } from '@/components/brand/route-mark';
 import { cn } from '@/lib/cn';
 
 import { HeroVisual } from './hero-visual';
 import { useRevealed, useScrolledPast } from './use-reveal';
+import { useTypedReveal } from './use-typed-reveal';
 
 /** Hero entrance stagger: badge → h1 → paragraph → buttons → fine print. */
-const HERO_ENTRANCE_DELAYS = [0, 60, 120, 180, 240] as const;
+const HERO_ENTRANCE_DELAYS = [0, 80, 160, 240, 320] as const;
 function heroEntrance(delayMs: number) {
-  return { animation: `triply-fade-up 320ms var(--ease-out) ${delayMs}ms both` };
+  return { animation: `triply-fade-up 420ms var(--ease-out) ${delayMs}ms both` };
 }
 
 const PRIMARY_BUTTON =
@@ -21,7 +22,7 @@ const PRIMARY_BUTTON =
 
 function revealCls(revealed: boolean) {
   return cn(
-    'transition-[opacity,transform] duration-[280ms] ease-out',
+    'transition-[opacity,transform] duration-[360ms] ease-out',
     revealed ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0',
   );
 }
@@ -70,6 +71,43 @@ const FEATURES = [
   },
 ] as const;
 
+/** The "Under the hood" code sample, tokenised so its typewriter reveal can
+ *  slice arbitrary styled runs by a single running character count. */
+const API_CODE_TOKENS: { text: string; className?: string }[] = [
+  { text: 'POST', className: 'text-[#7B7EF7]' },
+  { text: ' /api/trips/TRIP_ID/import\n' },
+  { text: 'Authorization: Bearer triply_…', className: 'text-faint' },
+  { text: '\n\n{ ' },
+  { text: '"cities"', className: 'text-[#F8F8FB]' },
+  { text: ': [\n    { ' },
+  { text: '"title"', className: 'text-[#F8F8FB]' },
+  { text: ': ' },
+  { text: '"Barcelona"', className: 'text-[#9fd39f]' },
+  { text: ',\n      ' },
+  { text: '"columns"', className: 'text-[#F8F8FB]' },
+  { text: ': [ … ] }\n] }' },
+];
+const API_CODE_LENGTH = API_CODE_TOKENS.reduce((sum, t) => sum + t.text.length, 0);
+
+function TypedApiCode({ revealed }: { revealed: number }) {
+  let consumed = 0;
+  return (
+    <>
+      {API_CODE_TOKENS.map((token, i) => {
+        const start = consumed;
+        consumed += token.text.length;
+        const visible = token.text.slice(0, Math.max(0, revealed - start));
+        if (!visible) return null;
+        return (
+          <span key={i} className={token.className}>
+            {visible}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 function McpBadge({
   className,
   width = 15,
@@ -81,7 +119,7 @@ function McpBadge({
 }) {
   return (
     <img
-      src="/mcp-icon.svg"
+      src="/mcp-icon-rounded.svg"
       width={width}
       height={height}
       alt=""
@@ -101,6 +139,35 @@ export function LandingPage({
   const { ref: featuresRef, revealed: featuresRevealed } = useRevealed<HTMLDivElement>();
   const { ref: apiRef, revealed: apiRevealed } = useRevealed<HTMLDivElement>();
   const [activeCity, setActiveCity] = useState<(typeof CITY_NAMES)[number]>('London');
+  const apiCodeRevealed = useTypedReveal(apiRevealed, API_CODE_LENGTH, 14);
+
+  const cityTabsRef = useRef<HTMLDivElement | null>(null);
+  const cityTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [cityIndicator, setCityIndicator] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const container = cityTabsRef.current;
+      const btn = cityTabRefs.current[CITY_NAMES.indexOf(activeCity)];
+      if (!container || !btn) return;
+      const containerRect = container.getBoundingClientRect();
+      const btnRect = btn.getBoundingClientRect();
+      setCityIndicator({
+        left: btnRect.left - containerRect.left,
+        top: btnRect.top - containerRect.top,
+        width: btnRect.width,
+        height: btnRect.height,
+      });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [activeCity]);
 
   return (
     <div className="min-h-dvh w-full overflow-x-hidden bg-page">
@@ -245,18 +312,39 @@ export function LandingPage({
           </div>
         </div>
 
-        <div ref={citiesRef} className="flex flex-wrap gap-2.5">
+        <div
+          ref={(el) => {
+            citiesRef.current = el;
+            cityTabsRef.current = el;
+          }}
+          className="relative flex flex-wrap gap-2.5"
+        >
+          {cityIndicator && (
+            <div
+              aria-hidden="true"
+              className="absolute rounded-xl border border-brand bg-brand-soft transition-[left,top,width,height] duration-300 ease-out"
+              style={{
+                left: cityIndicator.left,
+                top: cityIndicator.top,
+                width: cityIndicator.width,
+                height: cityIndicator.height,
+              }}
+            />
+          )}
           {CITY_NAMES.map((name, i) => {
             const active = name === activeCity;
             return (
               <button
                 key={name}
+                ref={(el) => {
+                  cityTabRefs.current[i] = el;
+                }}
                 type="button"
                 onClick={() => setActiveCity(name)}
                 className={cn(
-                  'inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border px-4 font-display text-sm font-semibold whitespace-nowrap transition-colors duration-150',
+                  'relative z-10 inline-flex h-11 shrink-0 items-center gap-2 rounded-xl border px-4 font-display text-sm font-semibold whitespace-nowrap transition-colors duration-150',
                   active
-                    ? 'border-brand bg-brand-soft text-brand-on-soft'
+                    ? 'border-transparent text-brand-on-soft'
                     : 'border-line bg-card text-ink hover:border-line-strong',
                   revealCls(citiesRevealed),
                 )}
@@ -328,25 +416,13 @@ export function LandingPage({
           </div>
           <div className="min-w-0 overflow-x-auto rounded-2xl border border-white/[.06] bg-[#0a0c22] px-5 py-4.5">
             <pre className="m-0 font-mono text-[12.5px] leading-[1.8] text-[#B8BCD0]">
-              <span className="text-[#7B7EF7]">POST</span>{' '}
-              /api/trips/TRIP_ID/import
-              {'\n'}
-              <span className="text-faint">
-                Authorization: Bearer triply_…
-              </span>
-              {'\n\n'}
-              {'{ '}
-              <span className="text-[#F8F8FB]">&quot;cities&quot;</span>
-              {': ['}
-              {'\n    { '}
-              <span className="text-[#F8F8FB]">&quot;title&quot;</span>
-              {': '}
-              <span className="text-[#9fd39f]">&quot;Barcelona&quot;</span>
-              {','}
-              {'\n      '}
-              <span className="text-[#F8F8FB]">&quot;columns&quot;</span>
-              {': [ … ] }'}
-              {'\n] }'}
+              <TypedApiCode revealed={apiCodeRevealed} />
+              {apiCodeRevealed < API_CODE_LENGTH && (
+                <span
+                  aria-hidden="true"
+                  className="ml-px -mb-[2px] inline-block h-[1em] w-[7px] animate-pulse bg-[#B8BCD0] align-middle"
+                />
+              )}
             </pre>
           </div>
         </div>

@@ -40,17 +40,22 @@ export function HeroVisual() {
     <div
       ref={visibilityRef}
       className="flex min-w-0 flex-col cursor-default opacity-0 select-none"
-      style={{ animation: 'triply-fade-up-visual 320ms var(--ease-out) 120ms both' }}
+      style={{ animation: 'triply-fade-up-visual 420ms var(--ease-out) 150ms both' }}
     >
       {/* `contents` keeps this remount boundary out of the flex layout above. */}
       <div key={playKey} className="contents">
         <div className="flex flex-col gap-2.5 rounded-t-[18px] rounded-b-[4px] bg-[#0F1230] px-4.5 py-4">
           <span className="inline-flex items-center gap-1.5 font-display text-[10.5px] font-bold tracking-[0.14em] text-faint uppercase">
-            <img src="/mcp-icon.svg" width={12} height={12} alt="" className="block" />
+            <img src="/mcp-icon-rounded.svg" width={12} height={12} alt="" className="block" />
             In Claude
           </span>
           <span className="text-pretty text-[14.5px] leading-relaxed text-[#F8F8FB]">
-            &ldquo;
+            <span
+              className={cn('transition-opacity ease-out', started ? 'opacity-100' : 'opacity-0')}
+              style={{ transitionDuration: `${WORD_DUR}ms`, transitionDelay: '0ms' }}
+            >
+              &ldquo;
+            </span>
             {WORDS.flatMap((word, i) => [
               i > 0 ? ' ' : null,
               <span
@@ -67,7 +72,15 @@ export function HeroVisual() {
                 {word}
               </span>,
             ])}
-            &rdquo;
+            <span
+              className={cn('transition-opacity ease-out', started ? 'opacity-100' : 'opacity-0')}
+              style={{
+                transitionDuration: `${WORD_DUR}ms`,
+                transitionDelay: `${(WORDS.length - 1) * WORD_STAGGER}ms`,
+              }}
+            >
+              &rdquo;
+            </span>
           </span>
           <span
             className={cn(
