@@ -29,7 +29,7 @@ function revealCls(revealed: boolean) {
 
 const STEPS = [
   {
-    title: 'Plan it in Claude',
+    title: 'Plan it in Claude or ChatGPT',
     body: 'Connect once with a token from Settings. Then ask in plain language: a single evening, a city, a two-week route.',
   },
   {
@@ -207,20 +207,21 @@ export function LandingPage({
             style={heroEntrance(HERO_ENTRANCE_DELAYS[0])}
           >
             <McpBadge />
-            MCP server · works with Claude
+            MCP server · works with Claude & ChatGPT
           </span>
           <h1
             className="text-pretty font-display text-[33px] leading-[1.05] font-black tracking-[-0.03em] opacity-0 sm:text-[54px]"
             style={heroEntrance(HERO_ENTRANCE_DELAYS[1])}
           >
-            See the trip you planned with Claude.
+            See the trip you planned with Claude or ChatGPT.
           </h1>
           <p
             className="max-w-[33em] text-pretty text-[15px] leading-relaxed text-muted opacity-0 sm:text-[18px]"
             style={heroEntrance(HERO_ENTRANCE_DELAYS[2])}
           >
-            trip.ly is the board your Claude conversation writes to. Ask for a
-            day, a city or a whole two-week route, then open it as a real
+            trip.ly is the board your Claude or ChatGPT conversation writes
+            to. Ask for a day, a city or a whole two-week route, then open it
+            as a real
             itinerary you can drag, retime and share with everyone coming
             along.
           </p>
@@ -242,7 +243,7 @@ export function LandingPage({
                 <span className="mb-0.5 size-1 rounded-full bg-white" />
                 <span className="size-2 rounded-full bg-white" />
               </span>
-              Connect to Claude
+              Connect Claude or ChatGPT
             </Link>
             <Link
               href="#how"
@@ -305,9 +306,9 @@ export function LandingPage({
               Every city in one board, not one plan per stop.
             </h2>
             <p className="text-pretty text-[14.5px] leading-relaxed text-muted sm:text-base">
-              Ask Claude for &ldquo;the Barcelona leg&rdquo; and it goes in
-              its own city, with its own days and backlog. Switch with a tab;
-              the trip stays one thing you can hand to everyone.
+              Ask Claude or ChatGPT for &ldquo;the Barcelona leg&rdquo; and it
+              goes in its own city, with its own days and backlog. Switch
+              with a tab; the trip stays one thing you can hand to everyone.
             </p>
           </div>
         </div>
@@ -400,7 +401,8 @@ export function LandingPage({
               Under the hood
             </span>
             <h2 className="font-display text-2xl leading-[1.15] font-black tracking-[-0.02em] text-[#F8F8FB] sm:text-[30px]">
-              An MCP server and a REST API, both documented.
+              An MCP server for Claude and ChatGPT, plus a REST API, all
+              documented.
             </h2>
             <p className="text-pretty text-[14.5px] leading-relaxed text-[#B8BCD0]">
               Every board action is exposed as a tool: import in bulk, retime,
