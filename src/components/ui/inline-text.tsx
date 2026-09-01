@@ -16,6 +16,7 @@ export function InlineText({
   ariaLabel,
   autoFocus = false,
   multiline = false,
+  fitContent = false,
 }: {
   value: string;
   onCommit: (value: string) => void;
@@ -25,6 +26,13 @@ export function InlineText({
   /** Focus and select on mount — used for freshly created items. */
   autoFocus?: boolean;
   multiline?: boolean;
+  /**
+   * Shrink the field to the width of its own text instead of filling its
+   * container. For a title sitting in a wide bar, where a full-width hit area
+   * and hover background read as an empty search box rather than a name you
+   * can click. Ignored when `multiline`.
+   */
+  fitContent?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
@@ -78,14 +86,47 @@ export function InlineText({
     className: cn(
       'w-full min-w-0 rounded-[6px] border-0 bg-transparent outline-none',
       'transition-colors duration-150 hover:bg-subtle focus:bg-subtle',
-      'px-1 -mx-1 placeholder:text-faint placeholder:italic',
+      'px-1 placeholder:text-faint placeholder:italic',
+      // When fitting, the wrapper carries the offset instead, so the negative
+      // margin does not fight the grid cell it is being measured into.
+      !fitContent && '-mx-1',
       className,
     ),
   };
 
-  return multiline ? (
-    <textarea {...shared} rows={2} />
-  ) : (
-    <input {...shared} type="text" />
+  if (multiline) return <textarea {...shared} rows={2} />;
+
+  if (!fitContent) return <input {...shared} type="text" />;
+
+  /*
+   * An input has no intrinsic content width, so a copy of the text is stacked
+   * in the same grid cell to supply one. The span is what the column is sized
+   * from; the input lays over it at `w-full` and inherits that width, updating
+   * as you type because both read the same draft.
+   *
+   * Measuring in CSS rather than JS keeps it correct on the first paint, with
+   * no ref, no observer, and no reflow after mount. `field-sizing: content`
+   * would replace all of this, but it is Chromium-only for now.
+   *
+   * `max-w-full` caps the field at the container so a very long title stops
+   * growing and scrolls inside itself rather than shoving the toolbar off.
+   */
+  return (
+    <span className="-mx-1 inline-grid max-w-full items-center align-middle">
+      <span
+        aria-hidden="true"
+        className={cn(
+          'invisible col-start-1 row-start-1 px-1 whitespace-pre',
+          className,
+        )}
+      >
+        {draft || placeholder}
+      </span>
+      <input
+        {...shared}
+        type="text"
+        className={cn(shared.className, 'col-start-1 row-start-1')}
+      />
+    </span>
   );
 }

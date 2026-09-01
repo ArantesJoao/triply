@@ -41,7 +41,7 @@ export function ConnectionsPanel({ initial }: { initial: Connection[] }) {
         </h2>
         <p className="mt-1 text-[13px] leading-relaxed text-muted">
           Apps you have let into your trips. Disconnecting one locks it out
-          immediately — reconnect from the app itself if you change your mind.
+          immediately. Reconnect from the app itself if you change your mind.
         </p>
       </header>
 
