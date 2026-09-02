@@ -2,6 +2,7 @@
 
 import { CheckCheck, ChevronDown } from 'lucide-react';
 
+import { RouteTile } from '@/components/brand/route-mark';
 import { cn } from '@/lib/cn';
 
 import { heroTiming, useHeroSequence, WORDS } from './use-hero-sequence';
@@ -46,7 +47,7 @@ export function HeroVisual() {
       <div key={playKey} className="contents">
         <div className="flex flex-col gap-2.5 rounded-t-[18px] rounded-b-[4px] bg-[#0F1230] px-4.5 py-4">
           <span className="inline-flex items-center gap-1.5 font-display text-[10.5px] font-bold tracking-[0.14em] text-faint uppercase">
-            <img src="/mcp-icon-rounded.svg" width={12} height={12} alt="" className="block" />
+            <RouteTile size={12} />
             In Claude or ChatGPT
           </span>
           <span className="text-pretty text-[14.5px] leading-relaxed text-[#F8F8FB]">
