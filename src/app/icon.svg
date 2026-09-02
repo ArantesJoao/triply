@@ -1,6 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <!-- trip.ly favicon — periwinkle dot trail + destination -->
-  <rect width="32" height="32" rx="7" fill="#6366F1"/>
+  <!--
+    trip.ly favicon — periwinkle dot trail + destination.
+
+    Square edge-to-edge, same reasoning as mcp-icon.svg: browsers, OSes and
+    connector lists that show this anywhere bigger than a tab (bookmarks,
+    PWA home screens, Claude's own connector row) round and mask the tile
+    themselves. Baking a rounded rect in here just leaves transparent
+    corners for that mask to composite over, which reads as a pale halo.
+  -->
+  <rect width="32" height="32" fill="#6366F1"/>
   <!-- Trail dots, rising and dipping -->
   <circle cx="5" cy="22" r="1.5" fill="#fff" opacity="0.5"/>
   <circle cx="9" cy="19" r="1.6" fill="#fff" opacity="0.6"/>
