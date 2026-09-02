@@ -69,11 +69,27 @@ const PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
  * credentials, and only `/api/mcp` is behind the bearer.
  *
  * PNG first because that is the one format an icon-rendering client MUST
- * support; SVG second for anything that would rather scale it.
+ * support (per the spec's `icons` section); SVG second for anything that
+ * would rather scale it. 512x512 because that's the resolution Anthropic's
+ * own connector-directory submission asks for icon assets — the ceiling any
+ * client is likely to want, so this scales down cleanly instead of ever
+ * scaling up.
  *
  * `src` has to be absolute — a client is required to reject anything that is
  * not an https: or data: URI — so with no NEXT_PUBLIC_APP_URL we send none
  * at all rather than a relative path nothing will load.
+ *
+ * As of MCP spec 2025-11-25, Claude.ai does not yet read this field for
+ * custom (non-directory) connectors — see
+ * github.com/anthropics/claude-ai-mcp/issues/152 — so a connector row there
+ * shows something else. It isn't `src/app/icon.svg` either (that one is
+ * deliberately rounded, for the browser tab — see its own comment); the
+ * best guess left is that whatever renders the connector list just tries a
+ * conventional path like `/favicon.ico` without reading our HTML or this
+ * field at all. `public/favicon.ico` and the other conventionally-named
+ * files next to it get the square, no-baked-in-rounding treatment on that
+ * guess — same reasoning as the icons here, just aimed at a URL instead of
+ * a declared field.
  */
 const ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
 
@@ -82,7 +98,7 @@ const ICONS = ORIGIN
       {
         src: `${ORIGIN}/mcp-icon.png`,
         mimeType: 'image/png',
-        sizes: ['96x96'],
+        sizes: ['512x512'],
       },
       {
         src: `${ORIGIN}/mcp-icon.svg`,

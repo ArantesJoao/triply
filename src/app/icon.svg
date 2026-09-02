@@ -1,5 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <!-- trip.ly favicon — periwinkle dot trail + destination -->
+  <!--
+    trip.ly favicon — periwinkle dot trail + destination.
+
+    Deliberately rounded, unlike mcp-icon.svg: this file only reaches a
+    browser through the `<link rel="icon">` tag Next generates from it, and
+    a browser tab renders exactly the pixels given — no mask of its own — so
+    rounding here just looks like a normal favicon.
+    Whatever picks the MCP server's icon for Claude's connector list does
+    not appear to read that tag or the MCP `icons` field (see the note in
+    src/app/api/mcp/route.ts); it looks more like a guess at a conventional
+    path such as /favicon.ico, which is why that one — and the other
+    conventional names next to it in public/ — stay square.
+  -->
   <rect width="32" height="32" rx="7" fill="#6366F1"/>
   <!-- Trail dots, rising and dipping -->
   <circle cx="5" cy="22" r="1.5" fill="#fff" opacity="0.5"/>
