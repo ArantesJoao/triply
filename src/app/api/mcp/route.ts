@@ -15,16 +15,20 @@ import {
   createCity,
   createColumn,
   createItem,
+  createItems,
   deleteCity,
   deleteColumn,
   deleteItem,
+  deleteItems,
   getBoard,
   getCity,
   importBoard,
   moveItem,
+  moveItems,
   updateCity,
   updateColumn,
   updateItem,
+  updateItems,
 } from '@/server/board';
 import { ApiError } from '@/server/errors';
 import { deleteCityTag, renameCityTag } from '@/server/tags';
@@ -522,6 +526,33 @@ const tools: Tool[] = [
     }),
   }),
   defineTool({
+    name: 'create_items',
+    description:
+      'Bulk create: add several activities in one call, each into its own column (they need not be the same one). Prefer this over repeated create_item calls when adding more than one activity at a time.',
+    inputSchema: {
+      type: 'object',
+      required: ['tripId', 'items'],
+      properties: {
+        tripId: str('Trip id.'),
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['column'],
+            properties: {
+              column: str('Column id or handle this activity goes into.'),
+              ...itemProperties,
+            },
+          },
+        },
+      },
+    },
+    schema: toolArgs.create_items,
+    run: async ({ tripId, items }, actor) => ({
+      ids: await createItems(await scoped(tripId, actor), items),
+    }),
+  }),
+  defineTool({
     name: 'update_item',
     description:
       'Edit an activity. Send time: null to unschedule it into the tray.',
@@ -538,6 +569,35 @@ const tools: Tool[] = [
     run: async ({ tripId, itemId, ...patch }, actor) => ({
       id: await updateItem(await scoped(tripId, actor), itemId, patch),
     }),
+  }),
+  defineTool({
+    name: 'update_items',
+    description:
+      'Bulk edit: patch several activities in one call, each by its own itemId — including moving one to another column via columnId. Prefer this over repeated update_item calls when editing more than one activity at a time.',
+    inputSchema: {
+      type: 'object',
+      required: ['tripId', 'items'],
+      properties: {
+        tripId: str('Trip id.'),
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['itemId'],
+            properties: {
+              itemId: str('Item id.'),
+              columnId: str('Move it to this column id or handle. Optional.'),
+              ...itemProperties,
+            },
+          },
+        },
+      },
+    },
+    schema: toolArgs.update_items,
+    run: async ({ tripId, items }, actor) => {
+      const scopedTripId = await scoped(tripId, actor);
+      return { ids: await updateItems(scopedTripId, items) };
+    },
   }),
   defineTool({
     name: 'move_item',
@@ -570,6 +630,42 @@ const tools: Tool[] = [
     }),
   }),
   defineTool({
+    name: 'move_items',
+    description:
+      'Bulk move: relocate several activities in one call, each to its own destination column and (optionally) time. Prefer this over repeated move_item calls when moving more than one activity at a time — e.g. shoving a whole afternoon to another day.',
+    inputSchema: {
+      type: 'object',
+      required: ['tripId', 'items'],
+      properties: {
+        tripId: str('Trip id.'),
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['itemId', 'columnId'],
+            properties: {
+              itemId: str('Item id.'),
+              columnId: str('Destination column id or handle.'),
+              time: {
+                type: ['string', 'null'],
+                description: '"HH:MM", or null to unschedule.',
+              },
+              dayOffset: {
+                type: 'integer',
+                description:
+                  'Midnights past the column date; 1 for after midnight.',
+              },
+            },
+          },
+        },
+      },
+    },
+    schema: toolArgs.move_items,
+    run: async ({ tripId, items }, actor) => ({
+      ids: await moveItems(await scoped(tripId, actor), items),
+    }),
+  }),
+  defineTool({
     name: 'delete_item',
     description: 'Delete one activity.',
     inputSchema: {
@@ -580,6 +676,24 @@ const tools: Tool[] = [
     schema: toolArgs.delete_item,
     run: async ({ tripId, itemId }, actor) => {
       await deleteItem(await scoped(tripId, actor), itemId);
+      return { ok: true };
+    },
+  }),
+  defineTool({
+    name: 'delete_items',
+    description:
+      'Bulk delete: remove several activities in one call, by itemId. Prefer this over repeated delete_item calls when clearing more than one activity at a time.',
+    inputSchema: {
+      type: 'object',
+      required: ['tripId', 'itemIds'],
+      properties: {
+        tripId: str('Trip id.'),
+        itemIds: { type: 'array', items: { type: 'string' }, description: 'Item ids to delete.' },
+      },
+    },
+    schema: toolArgs.delete_items,
+    run: async ({ tripId, itemIds }, actor) => {
+      await deleteItems(await scoped(tripId, actor), itemIds);
       return { ok: true };
     },
   }),

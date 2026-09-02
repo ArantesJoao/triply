@@ -160,11 +160,14 @@ Claude Desktop uses the same server: **Settings → Connectors → Add custom
 connector**, URL `https://planwithtriply.com/api/mcp`. The same instructions,
 with a copy button, are on `/settings` in the app.
 
-20 tools, including `list_trips`, `get_board`, `import_cities`, `move_item`,
+24 tools, including `list_trips`, `get_board`, `import_cities`, `move_item`,
 `set_tag_style` and the per-city `rename_tag` / `delete_tag` — full CRUD over
-trips, cities, columns and items. Arguments go through the same zod schemas as
-the REST API. Member management and the share link are deliberately left out:
-those are owner decisions, made in the app.
+trips, cities, columns and items. `create_items`, `update_items`,
+`move_items` and `delete_items` are bulk siblings of the singular item tools,
+taking an array so an agent editing many cards at once doesn't pay one round
+trip per card. Arguments go through the same zod schemas as the REST API.
+Member management and the share link are deliberately left out: those are
+owner decisions, made in the app.
 
 ## Implementation notes
 

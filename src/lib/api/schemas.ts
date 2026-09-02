@@ -260,10 +260,32 @@ export const toolArgs = {
 
   create_item: z.strictObject({ tripId, column: ref, ...itemInput.shape }),
 
+  create_items: z.strictObject({
+    tripId,
+    items: z
+      .array(z.strictObject({ column: ref, ...itemInput.shape }))
+      .min(1)
+      .max(200),
+  }),
+
   update_item: z.strictObject({
     tripId,
     itemId: z.string().min(1).max(80),
     ...itemInput.shape,
+  }),
+
+  update_items: z.strictObject({
+    tripId,
+    items: z
+      .array(
+        z.strictObject({
+          itemId: z.string().min(1).max(80),
+          columnId: ref.optional(),
+          ...itemInput.shape,
+        }),
+      )
+      .min(1)
+      .max(200),
   }),
 
   move_item: z.strictObject({
@@ -274,9 +296,29 @@ export const toolArgs = {
     dayOffset: z.int().min(0).max(6).optional(),
   }),
 
+  move_items: z.strictObject({
+    tripId,
+    items: z
+      .array(
+        z.strictObject({
+          itemId: z.string().min(1).max(80),
+          columnId: ref,
+          time: timeString.nullable().optional(),
+          dayOffset: z.int().min(0).max(6).optional(),
+        }),
+      )
+      .min(1)
+      .max(200),
+  }),
+
   delete_item: z.strictObject({
     tripId,
     itemId: z.string().min(1).max(80),
+  }),
+
+  delete_items: z.strictObject({
+    tripId,
+    itemIds: z.array(z.string().min(1).max(80)).min(1).max(200),
   }),
 } as const;
 
