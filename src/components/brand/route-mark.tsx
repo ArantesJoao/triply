@@ -84,6 +84,40 @@ export function RouteMark({
   );
 }
 
+/**
+ * The rounded-square app tile — dots on a filled periwinkle tile, for
+ * in-page badges (hero, landing) where the tile sits directly on our own
+ * background, not composited into another client's own rounding/mask.
+ *
+ * Deliberately inline, never a fetchable `/*.svg` URL: a previous version
+ * lived at `public/mcp-icon-rounded.svg` and something crawling the
+ * homepage for a logo `<img>` picked it up as the MCP server's connector
+ * icon, double-rounding its already-rounded, transparent-cornered corners
+ * against whatever mask that client applies — the same halo bug the
+ * square `public/mcp-icon.svg` exists to avoid. Inlining it removes the
+ * URL a crawler could find at all.
+ */
+export function RouteTile({ size = 15, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      width={size}
+      height={size}
+      fill="none"
+      aria-hidden="true"
+      className={cn('block shrink-0', className)}
+    >
+      <rect width="32" height="32" rx="7" fill="#6366F1" />
+      <circle cx="5" cy="22" r="1.5" fill="#fff" opacity="0.5" />
+      <circle cx="9" cy="19" r="1.6" fill="#fff" opacity="0.6" />
+      <circle cx="13" cy="16.5" r="1.7" fill="#fff" opacity="0.7" />
+      <circle cx="17" cy="18" r="1.8" fill="#fff" opacity="0.8" />
+      <circle cx="21" cy="15" r="1.9" fill="#fff" opacity="0.9" />
+      <circle cx="26" cy="11" r="3.5" fill="#fff" />
+    </svg>
+  );
+}
+
 /** The wordmark: lowercase, `.ly` in Periwinkle. */
 export function Logo({
   className,

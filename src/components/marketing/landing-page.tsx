@@ -4,7 +4,7 @@ import { AlignLeft, Building2, Inbox, Smartphone, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useLayoutEffect, useRef, useState } from 'react';
 
-import { Logo } from '@/components/brand/route-mark';
+import { Logo, RouteTile } from '@/components/brand/route-mark';
 import { cn } from '@/lib/cn';
 
 import { HeroVisual } from './hero-visual';
@@ -108,26 +108,6 @@ function TypedApiCode({ revealed }: { revealed: number }) {
   );
 }
 
-function McpBadge({
-  className,
-  width = 15,
-  height = 15,
-}: {
-  className?: string;
-  width?: number;
-  height?: number;
-}) {
-  return (
-    <img
-      src="/mcp-icon-rounded.svg"
-      width={width}
-      height={height}
-      alt=""
-      className={cn('block', className)}
-    />
-  );
-}
-
 export function LandingPage({
   signInAction,
 }: {
@@ -206,7 +186,7 @@ export function LandingPage({
             className="inline-flex h-8 w-fit items-center gap-2 rounded-full border border-brand-soft bg-brand-soft py-0 pr-3.5 pl-2.5 text-[12.5px] font-semibold text-brand-on-soft opacity-0"
             style={heroEntrance(HERO_ENTRANCE_DELAYS[0])}
           >
-            <McpBadge />
+            <RouteTile />
             MCP server · works with Claude & ChatGPT
           </span>
           <h1
