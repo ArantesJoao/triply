@@ -460,6 +460,24 @@ export async function createItem(
   return id;
 }
 
+/**
+ * Creates several activities in one call, each into its own column. The
+ * common case an MCP client hits repeatedly is seeding a day's worth of
+ * cards one `create_item` at a time — this collapses that into one round
+ * trip while staying a plain loop over the single-item path, same as
+ * {@link importBoard} does for cities.
+ */
+export async function createItems(
+  tripId: string,
+  list: (ItemInput & { column: string })[],
+) {
+  const ids: string[] = [];
+  for (const { column, ...input } of list) {
+    ids.push(await createItem(tripId, column, input));
+  }
+  return ids;
+}
+
 export async function updateItem(
   tripId: string,
   itemId: string,
@@ -501,10 +519,29 @@ export async function updateItem(
   return item.id;
 }
 
+/** As {@link createItems}, for edits: one call, each patch keyed by itemId. */
+export async function updateItems(
+  tripId: string,
+  list: (ItemInput & { itemId: string; columnId?: string; position?: number })[],
+) {
+  const ids: string[] = [];
+  for (const { itemId, ...patch } of list) {
+    ids.push(await updateItem(tripId, itemId, patch));
+  }
+  return ids;
+}
+
 export async function deleteItem(tripId: string, itemId: string) {
   const { item } = await resolveItem(tripId, itemId);
   await db.delete(items).where(eq(items.id, item.id));
   await touchTrip(tripId);
+}
+
+/** As {@link createItems}, for cleanup: delete several activities in one call. */
+export async function deleteItems(tripId: string, itemIds: string[]) {
+  for (const itemId of itemIds) {
+    await deleteItem(tripId, itemId);
+  }
 }
 
 /**
@@ -555,6 +592,22 @@ export async function moveItem(
 
   await touchTrip(tripId);
   return item.id;
+}
+
+/**
+ * As {@link createItems}, for reshuffling: move several activities in one
+ * call, each to its own destination column. No `order` per entry — a bulk
+ * move is for relocating cards, not choreographing a drop's final ordering.
+ */
+export async function moveItems(
+  tripId: string,
+  list: { itemId: string; columnId: string; time?: string | null; dayOffset?: number }[],
+) {
+  const ids: string[] = [];
+  for (const { itemId, ...move } of list) {
+    ids.push(await moveItem(tripId, itemId, move));
+  }
+  return ids;
 }
 
 /** Explicit reordering of a list column, independent of any move. */

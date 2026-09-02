@@ -336,7 +336,16 @@ Item   { id, title, time, dayOffset, durationMin, blurb, tags[], position }`}</C
             <C>import_cities</C>, <C>create_city</C>,{' '}
             <C>update_city</C>, <C>delete_city</C>, <C>create_column</C>,{' '}
             <C>update_column</C>, <C>delete_column</C>, <C>create_item</C>,{' '}
-            <C>update_item</C>, <C>move_item</C>, <C>delete_item</C>.
+            <C>create_items</C>, <C>update_item</C>, <C>update_items</C>,{' '}
+            <C>move_item</C>, <C>move_items</C>, <C>delete_item</C>,{' '}
+            <C>delete_items</C>.
+          </p>
+          <p className="mt-3 text-[13px] leading-relaxed text-muted">
+            The plural item tools — <C>create_items</C>, <C>update_items</C>,{' '}
+            <C>move_items</C>, <C>delete_items</C> — take an array and do the
+            same work as their singular counterparts in one round trip, so an
+            agent editing a whole day&apos;s worth of activities doesn&apos;t
+            need one call per card.
           </p>
           <p className="mt-3 text-[13px] leading-relaxed text-muted">
             Arguments are validated against the same schemas as the REST API, so
