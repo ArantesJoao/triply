@@ -82,9 +82,14 @@ const PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
  * As of MCP spec 2025-11-25, Claude.ai does not yet read this field for
  * custom (non-directory) connectors — see
  * github.com/anthropics/claude-ai-mcp/issues/152 — so a connector row there
- * falls back to the site's own favicon (`src/app/icon.svg`) instead. That
- * file gets the same "no baked-in rounding" treatment as the PNG/SVG below,
- * for the same reason: whoever renders it applies their own mask.
+ * shows something else. It isn't `src/app/icon.svg` either (that one is
+ * deliberately rounded, for the browser tab — see its own comment); the
+ * best guess left is that whatever renders the connector list just tries a
+ * conventional path like `/favicon.ico` without reading our HTML or this
+ * field at all. `public/favicon.ico` and the other conventionally-named
+ * files next to it get the square, no-baked-in-rounding treatment on that
+ * guess — same reasoning as the icons here, just aimed at a URL instead of
+ * a declared field.
  */
 const ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
 

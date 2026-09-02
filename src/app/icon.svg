@@ -2,13 +2,17 @@
   <!--
     trip.ly favicon — periwinkle dot trail + destination.
 
-    Square edge-to-edge, same reasoning as mcp-icon.svg: browsers, OSes and
-    connector lists that show this anywhere bigger than a tab (bookmarks,
-    PWA home screens, Claude's own connector row) round and mask the tile
-    themselves. Baking a rounded rect in here just leaves transparent
-    corners for that mask to composite over, which reads as a pale halo.
+    Deliberately rounded, unlike mcp-icon.svg: this file only reaches a
+    browser through the `<link rel="icon">` tag Next generates from it, and
+    a browser tab renders exactly the pixels given — no mask of its own — so
+    rounding here just looks like a normal favicon.
+    Whatever picks the MCP server's icon for Claude's connector list does
+    not appear to read that tag or the MCP `icons` field (see the note in
+    src/app/api/mcp/route.ts); it looks more like a guess at a conventional
+    path such as /favicon.ico, which is why that one — and the other
+    conventional names next to it in public/ — stay square.
   -->
-  <rect width="32" height="32" fill="#6366F1"/>
+  <rect width="32" height="32" rx="7" fill="#6366F1"/>
   <!-- Trail dots, rising and dipping -->
   <circle cx="5" cy="22" r="1.5" fill="#fff" opacity="0.5"/>
   <circle cx="9" cy="19" r="1.6" fill="#fff" opacity="0.6"/>
