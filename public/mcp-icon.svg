@@ -2,12 +2,17 @@
   <!--
     trip.ly route mark — periwinkle dot trail + destination.
 
-    Square on purpose, unlike src/app/icon.svg. A client that shows this beside
-    a server rounds and masks the tile itself, so rounding it here only leaves
-    transparent corners to composite over whatever that client puts behind
-    them — which reads as a pale halo on a dark connector list.
+    Square on purpose. A client that shows this beside a server rounds and
+    masks the tile itself, so rounding it here only leaves transparent
+    corners to composite over whatever that client puts behind them — which
+    is how the halo shows up.
+
+    The rect is drawn a unit past the viewBox on every side. SVG clips it
+    back, but the overdraw means no edge pixel is ever partially covered, so
+    rasterising at a fractional scale cannot leave a semi-transparent hairline
+    to composite into a pale outline.
   -->
-  <rect width="32" height="32" fill="#6366F1"/>
+  <rect x="-1" y="-1" width="34" height="34" fill="#6366F1"/>
   <!-- Trail dots, rising and dipping -->
   <circle cx="5" cy="22" r="1.5" fill="#fff" opacity="0.5"/>
   <circle cx="9" cy="19" r="1.6" fill="#fff" opacity="0.6"/>

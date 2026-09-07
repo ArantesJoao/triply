@@ -92,10 +92,12 @@ export function RouteMark({
  * Deliberately inline, never a fetchable `/*.svg` URL: a previous version
  * lived at `public/mcp-icon-rounded.svg` and something crawling the
  * homepage for a logo `<img>` picked it up as the MCP server's connector
- * icon, double-rounding its already-rounded, transparent-cornered corners
- * against whatever mask that client applies — the same halo bug the
- * square `public/mcp-icon.svg` exists to avoid. Inlining it removes the
- * URL a crawler could find at all.
+ * icon, compositing its transparent corners onto a light sheet as four
+ * white wedges — the same halo the square `public/mcp-icon.svg` exists to
+ * avoid, and which `src/app/icon.svg` was later caught causing too.
+ * Inlining it removes the URL a crawler could find at all, which is why
+ * this is the *only* rounded copy of the mark left: every icon reachable
+ * by URL is a full-bleed opaque square.
  */
 export function RouteTile({ size = 15, className }: { size?: number; className?: string }) {
   return (
