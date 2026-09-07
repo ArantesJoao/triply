@@ -10,6 +10,8 @@ import {
 } from '@/lib/ids';
 import { BACKLOG_KEY } from '@/lib/board-model';
 import type { BoardDTO, CityDTO, ColumnDTO, ItemDTO } from '@/lib/board-model';
+import { cleanStops, isTravelMode, mapsUrlFor } from '@/lib/maps';
+import type { TravelMode } from '@/lib/maps';
 import { DAY_START_HELP, isValidDayStart, normaliseTime } from '@/lib/time';
 
 import { badRequest, conflict, notFound } from './errors';
@@ -28,6 +30,34 @@ export {
 /* ------------------------------------------------------------------ *
  * Reads
  * ------------------------------------------------------------------ */
+
+/**
+ * One item row as the API and the browser see it.
+ *
+ * `mapsUrl` is derived here rather than stored: it depends on the city, which
+ * a card can be moved between, and on how `src/lib/maps.ts` decides to spell a
+ * route today. A stored link would go stale on both counts.
+ */
+function toItemDTO(
+  row: typeof items.$inferSelect,
+  cityTitle: string | undefined,
+): ItemDTO {
+  const stops = row.stops ?? [];
+  const travelMode = isTravelMode(row.travelMode) ? row.travelMode : null;
+  return {
+    id: row.id,
+    title: row.title,
+    time: row.time,
+    dayOffset: row.dayOffset,
+    durationMin: row.durationMin,
+    blurb: row.blurb,
+    tags: row.tags ?? [],
+    stops,
+    travelMode,
+    mapsUrl: mapsUrlFor(stops, { city: cityTitle, travelMode }),
+    position: row.position,
+  };
+}
 
 /**
  * The whole trip as one nested document. Three queries regardless of size —
@@ -68,19 +98,19 @@ export async function getBoard(tripId: string): Promise<BoardDTO> {
         .orderBy(asc(items.position), asc(items.createdAt))
     : [];
 
+  // The city a card sits in is what qualifies its stops — "Liberty" means the
+  // London one on a London board — and the item rows only know their column.
+  const cityTitleById = new Map(cityRows.map((city) => [city.id, city.title]));
+  const cityTitleByColumn = new Map(
+    columnRows.map((column) => [column.id, cityTitleById.get(column.cityId)]),
+  );
+
   const itemsByColumn = new Map<string, ItemDTO[]>();
   for (const row of itemRows) {
     const list = itemsByColumn.get(row.columnId) ?? [];
-    list.push({
-      id: row.id,
-      title: row.title,
-      time: row.time,
-      dayOffset: row.dayOffset,
-      durationMin: row.durationMin,
-      blurb: row.blurb,
-      tags: row.tags ?? [],
-      position: row.position,
-    });
+    list.push(
+      toItemDTO(row, cityTitleByColumn.get(row.columnId)),
+    );
     itemsByColumn.set(row.columnId, list);
   }
 
@@ -413,6 +443,8 @@ export type ItemInput = {
   durationMin?: number | null;
   blurb?: string;
   tags?: string[];
+  stops?: string[];
+  travelMode?: TravelMode | null;
 };
 
 const cleanTags = (tags: unknown): string[] => {
@@ -436,13 +468,22 @@ async function nextPosition(
   return (row?.highest ?? -1) + 1;
 }
 
+/**
+ * Creates one activity, and reports the Maps link its stops produce.
+ *
+ * The link comes back with the id because the caller that most needs it is an
+ * agent that has just written a route and wants to hand the traveller
+ * something to tap — and because the city it has to be qualified with is right
+ * here, already resolved.
+ */
 export async function createItem(
   tripId: string,
   columnRef: string,
   input: ItemInput,
-) {
-  const { column } = await resolveColumn(tripId, columnRef);
+): Promise<{ id: string; mapsUrl: string | null }> {
+  const { column, city } = await resolveColumn(tripId, columnRef);
   const id = newItemId();
+  const stops = cleanStops(input.stops);
 
   await db.insert(items).values({
     id,
@@ -453,11 +494,19 @@ export async function createItem(
     durationMin: input.durationMin ?? null,
     blurb: input.blurb ?? '',
     tags: cleanTags(input.tags),
+    stops,
+    travelMode: input.travelMode ?? null,
     position: await nextPosition(db, column.id),
   });
 
   await touchTrip(tripId);
-  return id;
+  return {
+    id,
+    mapsUrl: mapsUrlFor(stops, {
+      city: city.title,
+      travelMode: input.travelMode ?? null,
+    }),
+  };
 }
 
 /**
@@ -471,19 +520,19 @@ export async function createItems(
   tripId: string,
   list: (ItemInput & { column: string })[],
 ) {
-  const ids: string[] = [];
+  const created: { id: string; mapsUrl: string | null }[] = [];
   for (const { column, ...input } of list) {
-    ids.push(await createItem(tripId, column, input));
+    created.push(await createItem(tripId, column, input));
   }
-  return ids;
+  return created;
 }
 
 export async function updateItem(
   tripId: string,
   itemId: string,
   patch: ItemInput & { columnId?: string; position?: number },
-) {
-  const { item } = await resolveItem(tripId, itemId);
+): Promise<{ id: string; mapsUrl: string | null }> {
+  const { item, city } = await resolveItem(tripId, itemId);
   const set: Record<string, unknown> = { updatedAt: new Date() };
 
   if (patch.title !== undefined) set.title = patch.title;
@@ -491,6 +540,8 @@ export async function updateItem(
   if (patch.tags !== undefined) set.tags = cleanTags(patch.tags);
   if (patch.durationMin !== undefined) set.durationMin = patch.durationMin;
   if (patch.dayOffset !== undefined) set.dayOffset = patch.dayOffset;
+  if (patch.stops !== undefined) set.stops = cleanStops(patch.stops);
+  if (patch.travelMode !== undefined) set.travelMode = patch.travelMode;
 
   if (patch.time !== undefined) {
     const time = normaliseTime(patch.time);
@@ -516,7 +567,21 @@ export async function updateItem(
 
   await db.update(items).set(set).where(eq(items.id, item.id));
   await touchTrip(tripId);
-  return item.id;
+
+  // Reported against the patched card, not the one that was read: a write that
+  // changed the stops has to hand back the link for what is there now.
+  const stops = patch.stops !== undefined ? cleanStops(patch.stops) : item.stops;
+  const travelMode =
+    patch.travelMode !== undefined ? patch.travelMode : item.travelMode;
+
+  return {
+    id: item.id,
+    mapsUrl: mapsUrlFor(stops, {
+      // A move to another city's column re-qualifies the stops with it.
+      city: city.title,
+      travelMode: isTravelMode(travelMode) ? travelMode : null,
+    }),
+  };
 }
 
 /** As {@link createItems}, for edits: one call, each patch keyed by itemId. */
@@ -524,11 +589,11 @@ export async function updateItems(
   tripId: string,
   list: (ItemInput & { itemId: string; columnId?: string; position?: number })[],
 ) {
-  const ids: string[] = [];
+  const updated: { id: string; mapsUrl: string | null }[] = [];
   for (const { itemId, ...patch } of list) {
-    ids.push(await updateItem(tripId, itemId, patch));
+    updated.push(await updateItem(tripId, itemId, patch));
   }
-  return ids;
+  return updated;
 }
 
 export async function deleteItem(tripId: string, itemId: string) {
@@ -648,6 +713,8 @@ async function insertItems(tx: Tx, columnId: string, list: ItemInput[]) {
       durationMin: item.durationMin ?? null,
       blurb: item.blurb ?? '',
       tags: cleanTags(item.tags),
+      stops: cleanStops(item.stops),
+      travelMode: item.travelMode ?? null,
       position: index,
     })),
   );

@@ -3,58 +3,31 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
-import { memo, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { memo } from 'react';
 
-import { TagChip } from '@/components/ui/chip';
+import { TagChip, TagDots } from '@/components/ui/chip';
 import { cn } from '@/lib/cn';
 
+import { type CardDensity } from './geometry';
 import { useItem, useTrip, type ItemRecord } from './store';
 
 export type CardVariant = 'axis' | 'list' | 'tray';
 
-/**
- * Reports the card's *natural* content height so the column can size its axis
- * slot from what actually rendered. Nothing here assumes a card height — that
- * assumption is exactly what broke the prototype once cards grew a tags row.
- */
-function useMeasuredHeight(
-  enabled: boolean,
-  onMeasure: ((height: number) => void) | undefined,
-) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    if (!enabled || !onMeasure || !ref.current) return;
-
-    const node = ref.current;
-    onMeasure(node.getBoundingClientRect().height);
-
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        // borderBoxSize, NOT contentRect: contentRect excludes padding, which
-        // measured every card short by its vertical padding and clipped the
-        // bottom of the tags row.
-        const height =
-          entry.borderBoxSize?.[0]?.blockSize ??
-          (entry.target as HTMLElement).offsetHeight;
-        onMeasure(height);
-      }
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [enabled, onMeasure]);
-
-  return ref;
-}
+/** Axis cards only: how many tag chips fit on one row before the count. */
+const AXIS_CHIP_LIMIT = 2;
 
 export type PlanCardProps = {
   itemId: string;
   variant: CardVariant;
   onOpen: (itemId: string) => void;
-  /** Axis cards only: natural content height in px. Must be referentially stable. */
-  onMeasure?: (itemId: string, height: number) => void;
-  /** Axis cards only: discard the remembered span when content shrinks. */
-  onContentChange?: (itemId: string) => void;
+  /**
+   * Axis cards only: how much of the card its slot has room for. The column
+   * decides this from the card's *time*, and the card never asks for more —
+   * which is what guarantees nothing is ever clipped. See `geometry.ts` for
+   * the arithmetic tying each density to an exact rendered height; the line
+   * heights below are pinned in px to keep that arithmetic honest.
+   */
+  density?: CardDensity;
   /** Axis cards only: the slot the packer allocated. */
   style?: React.CSSProperties;
   dimmed?: boolean;
@@ -64,8 +37,7 @@ function PlanCardInner({
   itemId,
   variant,
   onOpen,
-  onMeasure,
-  onContentChange,
+  density = 'full',
   style,
   dimmed = false,
 }: PlanCardProps) {
@@ -84,25 +56,14 @@ function PlanCardInner({
     data: { type: 'item', columnId: item?.columnId },
   });
 
-  const measure = useCallback(
-    (height: number) => onMeasure?.(itemId, height),
-    [onMeasure, itemId],
-  );
-  const contentRef = useMeasuredHeight(variant === 'axis', onMeasure && measure);
-
-  // When the content shrinks — a tag removed, a shorter title — the remembered
-  // span must be released so the slot can tighten back up.
-  // Only fields that affect the card's *natural rendered height* belong here.
-  // time and durationMin affect the card's position/slot on the axis but not
-  // its content height, so changing them must NOT release the measurement —
-  // ResizeObserver won't re-fire (the content didn't resize) and the card
-  // stays clipped at the minimum slot height.
-  const signature = item ? `${item.title}|${item.tags.join(',')}` : '';
-  useEffect(() => {
-    onContentChange?.(itemId);
-  }, [signature, onContentChange, itemId]);
-
   if (!item) return null;
+
+  const axis = variant === 'axis';
+  // Only an axis card is height-constrained; everywhere else it can be as tall
+  // as it likes, so everywhere else renders at full density.
+  const fit: CardDensity = axis ? density : 'full';
+  const chips = axis ? item.tags.slice(0, AXIS_CHIP_LIMIT) : item.tags;
+  const overflowChips = item.tags.length - chips.length;
 
   const dragStyle: React.CSSProperties = {
     ...style,
@@ -150,10 +111,10 @@ function PlanCardInner({
       />
 
       <div
-        ref={contentRef}
         className={cn(
           'pointer-events-none relative flex gap-1.5',
-          variant === 'tray' ? 'px-2 py-1.5' : 'px-2.5 py-2',
+          variant === 'tray' && 'px-2 py-1.5',
+          variant !== 'tray' && (fit === 'compact' ? 'px-2.5 py-1.5' : 'px-2.5 py-2'),
         )}
       >
         <button
@@ -173,51 +134,106 @@ function PlanCardInner({
         </button>
 
         <div className="min-w-0 flex-1 text-left">
-          {item.time && variant !== 'list' && (
-            <span className="font-display text-[11px] font-medium text-brand tabular-nums">
-              {item.time}
-              {item.dayOffset > 0 && (
-                <span className="ml-0.5 opacity-70">+{item.dayOffset}</span>
+          {/* Compact: the time, the title and the tag colours share one line —
+              the least a card can be and still be readable. */}
+          {fit === 'compact' ? (
+            <span className="flex items-center gap-1.5 leading-[18px]">
+              <Clock item={item} />
+              <Title item={item} variant={variant} className="min-w-0 flex-1" />
+              <TagDots tags={item.tags} tagColors={trip.tagColors} />
+            </span>
+          ) : (
+            <>
+              {item.time && variant !== 'list' && (
+                <span className="flex items-center justify-between gap-1.5 leading-[15px]">
+                  <Clock item={item} />
+                  {/* Stacked has no room for a tags row, so the tags ride the
+                      time line instead of disappearing. */}
+                  {fit === 'stacked' && (
+                    <TagDots tags={item.tags} tagColors={trip.tagColors} />
+                  )}
+                </span>
               )}
-            </span>
-          )}
 
-          <span
-            className={cn(
-              'block font-display font-semibold text-ink',
-              variant === 'tray'
-                ? 'truncate text-[12px] leading-snug'
-                : 'text-[13px] leading-snug',
-              variant === 'axis' && 'truncate',
-            )}
-          >
-            {item.title || (
-              <span className="text-faint italic">Untitled</span>
-            )}
-          </span>
+              <Title item={item} variant={variant} className="block" />
 
-          {variant === 'list' && item.blurb && (
-            <span className="mt-1 line-clamp-2 block text-[11.5px] leading-relaxed text-muted">
-              {item.blurb}
-            </span>
-          )}
+              {variant === 'list' && item.blurb && (
+                <span className="mt-1 line-clamp-2 block text-[11.5px] leading-relaxed text-muted">
+                  {item.blurb}
+                </span>
+              )}
 
-          {variant !== 'tray' && item.tags.length > 0 && (
-            <span className="mt-1.5 flex flex-wrap gap-1">
-              {item.tags.map((tag) => (
-                <TagChip
-                  key={tag}
-                  label={tag}
-                  tagColors={trip.tagColors}
-                  tagIcons={trip.tagIcons}
-                  size="sm"
-                />
-              ))}
-            </span>
+              {variant !== 'tray' && fit === 'full' && item.tags.length > 0 && (
+                // An axis card's tags row is exactly one 22px line tall, so it
+                // must not wrap: past two chips it counts the rest.
+                <span
+                  className={cn(
+                    'mt-1.5 flex gap-1',
+                    axis ? 'overflow-hidden' : 'flex-wrap',
+                  )}
+                >
+                  {chips.map((tag) => (
+                    <TagChip
+                      key={tag}
+                      label={tag}
+                      tagColors={trip.tagColors}
+                      tagIcons={trip.tagIcons}
+                      size="sm"
+                      className={axis ? 'min-w-0' : undefined}
+                    />
+                  ))}
+                  {overflowChips > 0 && (
+                    <span className="shrink-0 self-center text-[10px] font-medium text-faint tabular-nums">
+                      +{overflowChips}
+                    </span>
+                  )}
+                </span>
+              )}
+            </>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+/** The start time, `+1` when the stop runs past midnight. Exactly 15px tall. */
+function Clock({ item }: { item: ItemRecord }) {
+  if (!item.time) return null;
+
+  return (
+    <span className="shrink-0 font-display text-[11px] leading-[15px] font-medium text-brand tabular-nums">
+      {item.time}
+      {item.dayOffset > 0 && (
+        <span className="ml-0.5 opacity-70">+{item.dayOffset}</span>
+      )}
+    </span>
+  );
+}
+
+/** One line, 18px tall, wherever a card is height-constrained. */
+function Title({
+  item,
+  variant,
+  className,
+}: {
+  item: ItemRecord;
+  variant: CardVariant;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        'font-display font-semibold text-ink',
+        variant === 'tray'
+          ? 'truncate text-[12px] leading-snug'
+          : 'text-[13px] leading-[18px]',
+        variant === 'axis' && 'truncate',
+        className,
+      )}
+    >
+      {item.title || <span className="text-faint italic">Untitled</span>}
+    </span>
   );
 }
 

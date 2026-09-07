@@ -655,6 +655,11 @@ export class BoardStore {
       durationMin: DEFAULT_DURATION_MIN,
       blurb: '',
       tags: [],
+      stops: [],
+      travelMode: null,
+      // Filled in by the server, which is where the city that qualifies the
+      // stops is known. The dialog builds its own link from the draft anyway.
+      mapsUrl: null,
       position: this.state.columns[columnId]?.itemIds.length ?? 0,
       ...seed,
     };
@@ -706,6 +711,8 @@ export class BoardStore {
             durationMin: optimistic.durationMin,
             blurb: optimistic.blurb,
             tags: optimistic.tags,
+            stops: optimistic.stops,
+            travelMode: optimistic.travelMode,
           }),
         },
       );

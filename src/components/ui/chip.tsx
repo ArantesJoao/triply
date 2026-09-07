@@ -57,6 +57,46 @@ export function TagIndicator({
 }
 
 /**
+ * A card's tags reduced to their colours.
+ *
+ * Rides along on a line that already exists — the time, or the title — so it
+ * costs no height at all. That is the whole point: a card too short for real
+ * chips still says how many tags it has and which, rather than dropping them
+ * silently.
+ */
+export function TagDots({
+  tags,
+  tagColors,
+  className,
+}: {
+  tags: string[];
+  tagColors?: Record<string, number>;
+  className?: string;
+}) {
+  const dark = useDarkMode();
+  if (tags.length === 0) return null;
+
+  return (
+    <span
+      role="img"
+      aria-label={`Tagged ${tags.join(', ')}`}
+      className={cn('flex shrink-0 items-center gap-1', className)}
+    >
+      {tags.map((tag) => {
+        const c = tagColor(tag, tagColors);
+        return (
+          <span
+            key={tag}
+            className="size-1.5 rounded-full"
+            style={{ background: dark ? c.dotDark : c.dot }}
+          />
+        );
+      })}
+    </span>
+  );
+}
+
+/**
  * Tag chip — r=12, coloured dot or icon, theme-aware.
  *
  * Each tag gets a deterministic colour from an 8-hue palette (via

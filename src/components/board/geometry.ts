@@ -44,6 +44,36 @@ export const LIST_COLUMN_PX = 280;
 export const CARD_GAP_PX = 6;
 
 /**
+ * The three heights an axis card can render at.
+ *
+ * A card is given the slot its *time* earns it — never the other way round —
+ * so when the slot is short the card has to give something up rather than
+ * overflow it. These are the exact rendered heights of the three densities in
+ * `plan-card.tsx`, which is why every line height there is pinned in px: the
+ * arithmetic below has to be true, not approximately true.
+ *
+ *   full    16 (py-2)   + 15 time + 18 title + 6 (mt-1.5) + 22 chip = 77
+ *   stacked 16 (py-2)   + 15 time + 18 title                       = 49
+ *   compact 12 (py-1.5) + 18 (time and title on one line)          = 30
+ *
+ * Anything shorter than `CARD_COMPACT_PX` is not a card any more, so that is
+ * also the floor on a slot's height.
+ */
+export const CARD_FULL_PX = 77;
+export const CARD_STACKED_PX = 49;
+export const CARD_COMPACT_PX = 30;
+
+export type CardDensity = 'full' | 'stacked' | 'compact';
+
+/** The richest layout that fits in `height` px. */
+export const densityFor = (height: number): CardDensity =>
+  height >= CARD_FULL_PX
+    ? 'full'
+    : height >= CARD_STACKED_PX
+      ? 'stacked'
+      : 'compact';
+
+/**
  * Height of an empty column's prompt on desktop.
  *
  * Sized to the Backlog's empty state, which is the tallest of them and the one

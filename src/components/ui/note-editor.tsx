@@ -28,49 +28,22 @@ import { SheetLabel, useSheetIsMobile } from './sheet';
  * migrating.
  */
 
-/** Long notes fold at eight lines rather than pushing the sheet's tail away. */
-const CLAMP_LINES = 8;
+/**
+ * Long notes scroll rather than pushing the sheet's tail away. The cap is in
+ * `.prose-note` lines: 14px text at 1.7 line-height, from `globals.css`.
+ */
+const MAX_LINES = 10;
+const MAX_HEIGHT = `${Math.round(MAX_LINES * 14 * 1.7)}px`;
 
 export function NoteRead({ value }: { value: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const [clamped, setClamped] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Measure rather than count characters: what overflows depends on the width
-  // it is read at.
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    setClamped(node.scrollHeight - node.clientHeight > 2);
-  }, [value]);
-
   return (
-    <div>
-      <div
-        ref={ref}
-        style={
-          expanded
-            ? undefined
-            : {
-                display: '-webkit-box',
-                WebkitBoxOrient: 'vertical',
-                WebkitLineClamp: CLAMP_LINES,
-                overflow: 'hidden',
-              }
-        }
-      >
-        <Markdown source={value} />
-      </div>
-
-      {clamped && (
-        <button
-          type="button"
-          onClick={() => setExpanded((current) => !current)}
-          className="mt-1.5 text-[12.5px] font-semibold text-brand-on-soft hover:underline"
-        >
-          {expanded ? 'Show less' : 'Show more'}
-        </button>
-      )}
+    <div
+      // `overscroll-contain` keeps a note that has hit its end from carrying
+      // the scroll on into the sheet behind it.
+      className="scroll-slim overflow-y-auto overscroll-contain"
+      style={{ maxHeight: MAX_HEIGHT }}
+    >
+      <Markdown source={value} />
     </div>
   );
 }

@@ -349,6 +349,16 @@ export const items = pgTable(
     durationMin: integer('duration_min'),
     blurb: text('blurb').notNull().default(''),
     tags: text('tags').array().notNull().default([]),
+    /**
+     * Ordered stops of a route through this activity — a wander's path, as
+     * plain place names ("Kingly Court"). Ordered and repeatable, unlike
+     * `tags`: the same street twice is a loop, not a duplicate. Stored as
+     * written; `src/lib/maps.ts` qualifies each stop with the city and builds
+     * the Google Maps link on the way out.
+     */
+    stops: text('stops').array().notNull().default([]),
+    /** How that route is travelled. Null means walking, which is most of them. */
+    travelMode: varchar('travel_mode', { length: 16 }),
     /** Ordering within a list column, and tie-break within the tray. */
     position: integer('position').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
