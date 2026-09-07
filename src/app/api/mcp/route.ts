@@ -83,14 +83,19 @@ const PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
  * As of MCP spec 2025-11-25, Claude.ai does not yet read this field for
  * custom (non-directory) connectors — see
  * github.com/anthropics/claude-ai-mcp/issues/152 — so a connector row there
- * shows something else. It isn't `src/app/icon.svg` either (that one is
- * deliberately rounded, for the browser tab — see its own comment); the
- * best guess left is that whatever renders the connector list just tries a
- * conventional path like `/favicon.ico` without reading our HTML or this
- * field at all. `public/favicon.ico` and the other conventionally-named
- * files next to it get the square, no-baked-in-rounding treatment on that
- * guess — same reasoning as the icons here, just aimed at a URL instead of
- * a declared field.
+ * shows something else. Whatever that something is, it renders it onto a
+ * light sheet before masking: `src/app/icon.svg` used to be rounded with
+ * transparent corners, and the connector row put four white wedges around
+ * the tile.
+ *
+ * Rather than keep guessing which URL it picks, every icon this origin can
+ * hand out is now the same full-bleed opaque square — the ones declared
+ * here, `src/app/icon.svg` (the only icon path our HTML advertises, via
+ * `<link rel="icon">`), and the conventionally-named files in `public/`
+ * that something might try blind: `favicon.ico`, `apple-touch-icon.png`.
+ * None of them has a transparent pixel to composite, so whichever one wins
+ * there is nothing left for a client's own rounding to halo. The rounded
+ * version of the mark is `RouteTile`, inline and deliberately unfetchable.
  */
 const ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '');
 
@@ -148,8 +153,13 @@ const itemProperties = {
   stops: {
     type: 'array',
     items: { type: 'string' },
-    description:
-      'Ordered stops of a route through this activity, e.g. ["Whitehall","Trafalgar Square","Regent St","Liberty","Kingly Court"]. Use it whenever the activity is a walk or wander that passes through several places rather than sitting in one — it is what turns a described route into something tappable. Write each stop as a place a map can find: a landmark, street, or venue name. The city is added automatically, so "Kingly Court" is enough; never put a URL, a description, or a direction like "north up to" in here. Order is the order they are visited, and repeating one is fine. A single stop is allowed and simply drops a pin. trip.ly builds the Google Maps link itself and hands it back as mapsUrl — do not attempt to construct one.',
+    description: [
+      'Ordered stops of a route through this activity, e.g. ["Whitehall","Trafalgar Square","Regent St","Liberty","Kingly Court"]. Use it whenever the activity is a walk or wander that passes through several places rather than sitting in one — it is what turns a described route into something tappable. A single stop is allowed and simply drops a pin.',
+      'What counts as a stop: a place the route is actually drawn through, in visiting order. Repeating one is fine — a loop back through a street is a real repeat. Somewhere the note only mentions in passing, or a detour nobody is walking to, is not a stop; leave it in the note.',
+      'How to write one: a plain name is enough when it is unambiguous in this city — "Trafalgar Square", "Kingly Court", "Borough Market" — because the city is appended for you before the link is built. Add a street or a postcode only when the bare name is ambiguous, repeats across the city, or is a small venue a map may not know: "Rough Trade West, 130 Talbot Road W11 1JA". Never a URL, a description, or a direction like "north up to".',
+      "How many: up to 25, and there is no waypoint ceiling to design around. Google's documented directions URL holds 11 places, so trip.ly switches to the uncapped Maps path form beyond that — a 20-stop route keeps all 20. Do not trim a real route to make it fit.",
+      'trip.ly builds the Google Maps link itself and returns it as mapsUrl on every read and write. Do not attempt to construct one: a URL copied out of Maps carries place ids and a session token that cannot be invented.',
+    ].join('\n\n'),
   },
   travelMode: {
     type: 'string',

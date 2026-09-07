@@ -2,17 +2,22 @@
   <!--
     trip.ly favicon — periwinkle dot trail + destination.
 
-    Deliberately rounded, unlike mcp-icon.svg: this file only reaches a
-    browser through the `<link rel="icon">` tag Next generates from it, and
-    a browser tab renders exactly the pixels given — no mask of its own — so
-    rounding here just looks like a normal favicon.
-    Whatever picks the MCP server's icon for Claude's connector list does
-    not appear to read that tag or the MCP `icons` field (see the note in
-    src/app/api/mcp/route.ts); it looks more like a guess at a conventional
-    path such as /favicon.ico, which is why that one — and the other
-    conventional names next to it in public/ — stay square.
+    Square and fully opaque, like mcp-icon.svg, and for the same reason: this
+    is the one icon path advertised in our HTML (`<link rel="icon">`, which
+    Next generates from this file), so it is the first thing anything
+    crawling the site for a logo finds. It used to carry `rx="7"`, and a
+    client that rasterises it onto a light sheet before masking turned those
+    transparent corners into four white wedges around the tile — the halo
+    every other icon here is already shaped to avoid. A tab renders the given
+    pixels as-is, so a square favicon just looks like a normal favicon; the
+    rounded version of the mark is `RouteTile`, inline and unfetchable.
+
+    The rect is drawn a unit past the viewBox on every side. SVG clips it
+    back, but the overdraw means no edge pixel is ever partially covered, so
+    rasterising at a fractional scale cannot leave a semi-transparent hairline
+    to composite into a pale outline.
   -->
-  <rect width="32" height="32" rx="7" fill="#6366F1"/>
+  <rect x="-1" y="-1" width="34" height="34" fill="#6366F1"/>
   <!-- Trail dots, rising and dipping -->
   <circle cx="5" cy="22" r="1.5" fill="#fff" opacity="0.5"/>
   <circle cx="9" cy="19" r="1.6" fill="#fff" opacity="0.6"/>
