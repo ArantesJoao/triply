@@ -103,7 +103,7 @@ const ENDPOINTS: {
       [
         'POST',
         '/api/trips/:tripId/columns/:column/items',
-        'Body: { title?, time?, dayOffset?, durationMin?, blurb?, tags? }',
+        'Body: { title?, time?, dayOffset?, durationMin?, blurb?, tags?, stops?, travelMode? }',
       ],
       ['PATCH', '/api/trips/:tripId/items/:itemId', 'Same fields, all optional.'],
       ['DELETE', '/api/trips/:tripId/items/:itemId', ''],
@@ -215,7 +215,8 @@ POST /api/oauth/revoke       RFC 7009`}</Code>
           <Code>{`Trip   { id, title, activeCityId, dayStartMin, shareToken, revision, cities[] }
 City   { id, key, title, dayStartMin, position, columns[] }
 Column { id, key, title, timed, date, position, items[] }
-Item   { id, title, time, dayOffset, durationMin, blurb, tags[], position }`}</Code>
+Item   { id, title, time, dayOffset, durationMin, blurb, tags[],
+         stops[], travelMode, mapsUrl, position }`}</Code>
           <ul className="mt-3 flex flex-col gap-2 text-[13px] leading-relaxed text-muted">
             <li>
               <B>time</B> — 24-hour <C>&quot;HH:MM&quot;</C>, or{' '}
@@ -230,6 +231,23 @@ Item   { id, title, time, dayOffset, durationMin, blurb, tags[], position }`}</C
             <li>
               <B>durationMin</B> — optional; renders the card as a block rather
               than a point.
+            </li>
+            <li>
+              <B>stops</B> — an ordered route through the activity, as plain
+              place names (<C>[&quot;Whitehall&quot;,&quot;Trafalgar
+              Square&quot;,&quot;Kingly Court&quot;]</C>). Order is the order
+              they&apos;re visited and a repeat is a repeat, so unlike tags
+              nothing is sorted or de-duplicated. The city is appended when a
+              stop doesn&apos;t already name it, so short names are enough.{' '}
+              <B>travelMode</B> is <C>walking</C> unless set to{' '}
+              <C>transit</C>, <C>driving</C> or <C>bicycling</C>.
+            </li>
+            <li>
+              <B>mapsUrl</B> — read-only, derived from <C>stops</C> on the way
+              out: a Google Maps link for the whole route, or <C>null</C> when
+              there are no stops. Sending it back changes nothing. Writes return
+              it too, so a client that has just set a route never has to build a
+              Maps URL itself.
             </li>
             <li>
               <B>dayStartMin</B> — minutes past midnight where the day&apos;s

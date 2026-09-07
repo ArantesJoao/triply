@@ -91,7 +91,7 @@ async function main() {
     response?.status(),
   );
   await page.waitForSelector('[data-axis-column]', { timeout: 30_000 });
-  // Let measurement and lane packing settle.
+  // Let lane packing settle.
   await page.waitForTimeout(2500);
 
   console.log('\nShared time axis');
@@ -128,12 +128,23 @@ async function main() {
           right: Math.round(rect.right),
           top: Math.round(rect.top * 100) / 100,
           bottom: Math.round(rect.bottom * 100) / 100,
+          // Cards are overflow-hidden, so content that does not fit is simply
+          // sliced off with nothing on screen to say so. This is the only way
+          // to see it.
+          clippedBy: card.scrollHeight - card.clientHeight,
         };
       });
     }),
   );
 
   check('cards rendered on the axis', cards.length > 20, cards.length);
+
+  const clipped = cards.filter((card) => card.clippedBy > 0);
+  check(
+    'no card is taller than the slot it was given',
+    clipped.length === 0,
+    clipped.map((c) => `${c.column} ${c.time} by ${c.clippedBy}px`).slice(0, 5),
+  );
 
   const byTime = new Map<string, number[]>();
   for (const card of cards) {

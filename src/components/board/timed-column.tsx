@@ -3,19 +3,21 @@
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { Plus } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/cn';
-import { packLanes } from '@/lib/layout';
+import { INSTANT_MINUTES, packLanes, type LanePlacement } from '@/lib/layout';
 import { formatAxisLabel, toAxisMinutes } from '@/lib/time';
 
 import { ColumnHeader } from './column-header';
 import {
   AXIS_TOP_GAP_PX,
+  CARD_COMPACT_PX,
+  CARD_FULL_PX,
   CARD_GAP_PX,
   EMPTY_PROMPT_PX,
-  PX_PER_MINUTE,
+  densityFor,
   minutesToPx,
 } from './geometry';
 import { PlanCard } from './plan-card';
@@ -23,8 +25,16 @@ import { useColumn, useColumnItems } from './store';
 
 export type AxisWindow = { start: number; end: number };
 
-/** Smallest slot a card may occupy, so a bare title still has room to breathe. */
-const MIN_SLOT_PX = 46;
+/**
+ * Do two placements share any horizontal space?
+ *
+ * Cards in different lanes of the same collision cluster sit beside each
+ * other, so a later one puts no ceiling on how tall an earlier one may be.
+ * Cards that do share width — the usual case, both full width — do.
+ */
+const sharesWidth = (a: LanePlacement, b: LanePlacement) =>
+  a.lane / a.lanes < (b.lane + 1) / b.lanes &&
+  b.lane / b.lanes < (a.lane + 1) / a.lanes;
 
 export function TimedColumn({
   columnId,
@@ -50,57 +60,62 @@ export function TimedColumn({
   const column = useColumn(columnId);
   const items = useColumnItems(columnId);
 
-  /**
-   * Measured minimum span, in minutes, per card. Grows *and* shrinks — a wider
-   * card (fewer lanes) always wraps less and becomes shorter, so a shrink after
-   * a lane reduction can never trigger the reverse and oscillate.
-   */
-  const [measured, setMeasured] = useState<Record<string, number>>({});
-
-  const reportHeight = useCallback((itemId: string, height: number) => {
-    const minutes = Math.ceil((height + CARD_GAP_PX) / PX_PER_MINUTE);
-    setMeasured((current) =>
-      current[itemId] === minutes
-        ? current
-        : { ...current, [itemId]: minutes },
-    );
-  }, []);
-
-  const releaseHeight = useCallback((itemId: string) => {
-    setMeasured((current) => {
-      if (!(itemId in current)) return current;
-      const next = { ...current };
-      delete next[itemId];
-      return next;
-    });
-  }, []);
-
   const scheduled = useMemo(() => items.filter((item) => item.time), [items]);
 
   const placements = useMemo(() => {
-    const withStart = scheduled
-      .map((item) => ({
-        item,
-        start: toAxisMinutes(item.time, item.dayOffset) ?? axis.start,
-      }))
-      .sort((a, b) => a.start - b.start);
+    const starts = new Map(
+      scheduled.map((item) => [
+        item.id,
+        toAxisMinutes(item.time, item.dayOffset) ?? axis.start,
+      ]),
+    );
 
-    const inputs = withStart.map(({ item, start }, i) => {
-      const nextStart =
-        i + 1 < withStart.length ? withStart[i + 1].start : Infinity;
-      const gap = nextStart - start;
+    // Lanes first, from real time only — an activity declares its own duration
+    // and not one pixel more. See the rule at the top of `@/lib/layout`.
+    const packed = packLanes(
+      scheduled.map((item) => {
+        const start = starts.get(item.id)!;
+        return {
+          id: item.id,
+          start,
+          end: start + Math.max(item.durationMin ?? 0, INSTANT_MINUTES),
+        };
+      }),
+    );
 
-      const uncapped = Math.max(
-        item.durationMin ?? 0,
-        measured[item.id] ?? 0,
-        MIN_SLOT_PX / PX_PER_MINUTE,
+    // Heights second. A card gets the room its time earns it, and picks a
+    // density that fits in that room — it is never sized to its content, so
+    // its content can never spill out of it.
+    return packed.map((placement) => {
+      const item = scheduled.find((s) => s.id === placement.id)!;
+
+      let nextStart = Infinity;
+      for (const other of packed) {
+        if (other.start <= placement.start || !sharesWidth(placement, other)) {
+          continue;
+        }
+        nextStart = Math.min(nextStart, other.start);
+      }
+      const roomPx =
+        nextStart === Infinity
+          ? Infinity
+          : minutesToPx(nextStart - placement.start) - CARD_GAP_PX;
+
+      const duration = item.durationMin ?? 0;
+      const height = Math.max(
+        CARD_COMPACT_PX,
+        duration > 0
+          ? // A real duration is the card's true height; nothing that shares
+            // its width can start before it ends, so this always fits.
+            minutesToPx(duration) - CARD_GAP_PX
+          : // With no duration the card claims no span of its own, so it fills
+            // whatever is free — and hugs its content when nothing follows.
+            (roomPx === Infinity ? CARD_FULL_PX : roomPx),
       );
-      // Hard cap: a card never extends past the next card's start time.
-      const span = gap > 0 && gap < Infinity ? Math.min(uncapped, gap) : uncapped;
-      return { id: item.id, start, end: start + span };
+
+      return { ...placement, item, height, density: densityFor(height) };
     });
-    return packLanes(inputs);
-  }, [scheduled, measured, axis.start]);
+  }, [scheduled, axis.start]);
 
   const { setNodeRef: setAxisRef, isOver: axisOver } = useDroppable({
     id: `axis:${columnId}`,
@@ -150,27 +165,22 @@ export function TimedColumn({
           strategy={verticalListSortingStrategy}
         >
           {placements.map((placement) => {
-            const { lanes, lane } = placement;
-            const placedItem = scheduled.find((s) => s.id === placement.id);
+            const { lanes, lane, item, height, density } = placement;
             const dimByFilter =
               tagFilters.length > 0 &&
-              (!placedItem || !tagFilters.some((t) => placedItem.tags.includes(t)));
+              !tagFilters.some((t) => item.tags.includes(t));
 
             return (
               <PlanCard
                 key={placement.id}
                 itemId={placement.id}
                 variant="axis"
+                density={density}
                 onOpen={onOpenItem}
-                onMeasure={reportHeight}
-                onContentChange={releaseHeight}
                 dimmed={dimByFilter}
                 style={{
                   top: minutesToPx(placement.start - axis.start),
-                  height: Math.max(
-                    MIN_SLOT_PX,
-                    minutesToPx(placement.end - placement.start) - CARD_GAP_PX,
-                  ),
+                  height,
                   left: `calc(${(lane * 100) / lanes}% + 6px)`,
                   width: `calc(${100 / lanes}% - 10px)`,
                 }}

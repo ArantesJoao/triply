@@ -166,6 +166,9 @@ trips, cities, columns and items. `create_items`, `update_items`,
 `move_items` and `delete_items` are bulk siblings of the singular item tools,
 taking an array so an agent editing many cards at once doesn't pay one round
 trip per card. Arguments go through the same zod schemas as the REST API.
+An activity can also carry `stops` — an ordered route through it, written as
+plain place names — and every read and write hands back `mapsUrl`, the Google
+Maps link for that route, so a model never has to assemble one itself.
 Member management and the share link are deliberately left out: those are
 owner decisions, made in the app.
 

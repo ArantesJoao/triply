@@ -1,6 +1,7 @@
 import { ZodError, type ZodType, type z } from 'zod';
 
 import { toolArgs, type ToolName } from '@/lib/api/schemas';
+import { TRAVEL_MODES } from '@/lib/maps';
 import { TAG_COLOR_NAMES, tagColorNameByIndex } from '@/lib/tag-colors';
 import { NOTE_HELP } from '@/lib/markdown';
 import { TAG_ICON_KEYS } from '@/lib/tag-icons';
@@ -143,6 +144,18 @@ const itemProperties = {
     type: 'array',
     items: { type: 'string' },
     description: 'Free-form lowercase labels, e.g. ["food","market"].',
+  },
+  stops: {
+    type: 'array',
+    items: { type: 'string' },
+    description:
+      'Ordered stops of a route through this activity, e.g. ["Whitehall","Trafalgar Square","Regent St","Liberty","Kingly Court"]. Use it whenever the activity is a walk or wander that passes through several places rather than sitting in one — it is what turns a described route into something tappable. Write each stop as a place a map can find: a landmark, street, or venue name. The city is added automatically, so "Kingly Court" is enough; never put a URL, a description, or a direction like "north up to" in here. Order is the order they are visited, and repeating one is fine. A single stop is allowed and simply drops a pin. trip.ly builds the Google Maps link itself and hands it back as mapsUrl — do not attempt to construct one.',
+  },
+  travelMode: {
+    type: 'string',
+    enum: [...TRAVEL_MODES],
+    description:
+      'How the stops are travelled. Defaults to walking, which is what a wander is; set it for a day that rides the metro or drives between stops.',
   },
 } as const;
 
@@ -537,9 +550,10 @@ const tools: Tool[] = [
       },
     },
     schema: toolArgs.create_item,
-    run: async ({ tripId, column, ...input }, actor) => ({
-      id: await createItem(await scoped(tripId, actor), column, input),
-    }),
+    // Returns { id, mapsUrl } — the link is built here so a route never has to
+    // be re-read, and never has to be assembled by the caller.
+    run: async ({ tripId, column, ...input }, actor) =>
+      createItem(await scoped(tripId, actor), column, input),
   }),
   defineTool({
     name: 'create_items',
@@ -565,7 +579,7 @@ const tools: Tool[] = [
     },
     schema: toolArgs.create_items,
     run: async ({ tripId, items }, actor) => ({
-      ids: await createItems(await scoped(tripId, actor), items),
+      items: await createItems(await scoped(tripId, actor), items),
     }),
   }),
   defineTool({
@@ -582,9 +596,8 @@ const tools: Tool[] = [
       },
     },
     schema: toolArgs.update_item,
-    run: async ({ tripId, itemId, ...patch }, actor) => ({
-      id: await updateItem(await scoped(tripId, actor), itemId, patch),
-    }),
+    run: async ({ tripId, itemId, ...patch }, actor) =>
+      updateItem(await scoped(tripId, actor), itemId, patch),
   }),
   defineTool({
     name: 'update_items',
@@ -612,7 +625,7 @@ const tools: Tool[] = [
     schema: toolArgs.update_items,
     run: async ({ tripId, items }, actor) => {
       const scopedTripId = await scoped(tripId, actor);
-      return { ids: await updateItems(scopedTripId, items) };
+      return { items: await updateItems(scopedTripId, items) };
     },
   }),
   defineTool({

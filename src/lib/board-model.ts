@@ -7,6 +7,8 @@
  * bundle. Nothing in this file may import anything server-only.
  */
 
+import type { TravelMode } from '@/lib/maps';
+
 /** The column key that may never be deleted, in any city (build spec §2). */
 export const BACKLOG_KEY = 'backlog';
 
@@ -21,6 +23,16 @@ export type ItemDTO = {
   durationMin: number | null;
   blurb: string;
   tags: string[];
+  /** Ordered stops of a route through this activity; empty for most cards. */
+  stops: string[];
+  /** How the route is travelled. Null means walking. */
+  travelMode: TravelMode | null;
+  /**
+   * The Google Maps link for `stops`, derived rather than stored — the server
+   * builds it because it knows the city, and it is read-only: sending it back
+   * in a write changes nothing.
+   */
+  mapsUrl: string | null;
   position: number;
 };
 

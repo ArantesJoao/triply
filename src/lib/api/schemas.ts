@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { NOTE_HELP, unsupportedConstructs } from '@/lib/markdown';
+import { TRAVEL_MODES } from '@/lib/maps';
 import { TAG_COLOR_NAMES, TAG_PALETTE_SIZE } from '@/lib/tag-colors';
 import { TAG_ICON_KEYS } from '@/lib/tag-icons';
 import {
@@ -70,6 +71,14 @@ export const itemInput = z.object({
   durationMin: z.int().min(0).max(24 * 60).nullable().optional(),
   blurb: noteMarkdown.optional(),
   tags: z.array(z.string().max(60)).max(30).optional(),
+  /**
+   * The route's stops, in order. Longer than a Google Maps link can usefully
+   * hold is a day, not an activity — the cap is where a wander stops being one
+   * card. Blanks are dropped on the way in rather than rejected: an editor
+   * that splits a textarea on newlines produces them by simply pressing Enter.
+   */
+  stops: z.array(z.string().max(200)).max(25).optional(),
+  travelMode: z.enum(TRAVEL_MODES).nullable().optional(),
 });
 
 export const columnInput = z.object({

@@ -5,8 +5,7 @@ import { deleteItem, updateItem } from '@/server/board';
 type P = { tripId: string; itemId: string };
 
 export const PATCH = tripRoute<P>(async ({ req, tripId, params }) => {
-  const id = await updateItem(tripId, params.itemId, await body(req, updateItemBody));
-  return { id };
+  return updateItem(tripId, params.itemId, await body(req, updateItemBody));
 });
 
 export const DELETE = tripRoute<P>(async ({ tripId, params }) => {

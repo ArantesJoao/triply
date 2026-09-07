@@ -17,7 +17,9 @@ import { TagChip, TagInput } from '@/components/ui/chip';
 import { ConfirmPanel } from '@/components/ui/confirm';
 import { Menu, type MenuEntry } from '@/components/ui/menu';
 import { NoteEditor, NoteRead } from '@/components/ui/note-editor';
+import { PillGroup } from '@/components/ui/pill-group';
 import { AddRow, ReadSection } from '@/components/ui/read-field';
+import { RouteEditor, RouteRead } from '@/components/ui/route-field';
 import {
   Sheet,
   SheetBody,
@@ -28,6 +30,7 @@ import {
 import { TimePicker } from '@/components/ui/time-picker';
 import { cn } from '@/lib/cn';
 import { isEmptyNote } from '@/lib/markdown';
+import { cleanStops, type TravelMode } from '@/lib/maps';
 import {
   commonStartTimes,
   DEFAULT_DURATION_MIN,
@@ -58,10 +61,13 @@ type Draft = {
   durationMin: number;
   blurb: string;
   tags: string[];
+  /** Kept as typed, blank lines and all; cleaned on the way to the server. */
+  stops: string[];
+  travelMode: TravelMode | null;
 };
 
 /** Which control the flip into edit mode should land on. */
-type FocusField = 'title' | 'note' | 'tags' | 'move' | null;
+type FocusField = 'title' | 'note' | 'route' | 'tags' | 'move' | null;
 
 /**
  * Two ways out of an edit, and they end in different places.
@@ -84,6 +90,8 @@ const draftFromItem = (item: ItemRecord): Draft => ({
   durationMin: item.durationMin ?? DEFAULT_DURATION_MIN,
   blurb: item.blurb,
   tags: item.tags,
+  stops: item.stops,
+  travelMode: item.travelMode,
 });
 
 const blankDraft = (time: string | null): Draft => ({
@@ -92,6 +100,8 @@ const blankDraft = (time: string | null): Draft => ({
   durationMin: DEFAULT_DURATION_MIN,
   blurb: '',
   tags: [],
+  stops: [],
+  travelMode: null,
 });
 
 const sameDraft = (a: Draft, b: Draft) =>
@@ -99,7 +109,11 @@ const sameDraft = (a: Draft, b: Draft) =>
   a.time === b.time &&
   a.durationMin === b.durationMin &&
   a.blurb === b.blurb &&
-  sameTags(a.tags, b.tags);
+  a.travelMode === b.travelMode &&
+  // Compared cleaned, so a trailing newline left behind by an edit that ended
+  // up where it started doesn't count as an unsaved change.
+  sameSequence(cleanStops(a.stops), cleanStops(b.stops)) &&
+  sameSequence(a.tags, b.tags);
 
 /**
  * The activity card.
@@ -326,6 +340,8 @@ export function ItemDialog({
         durationMin: draft.durationMin,
         blurb: draft.blurb,
         tags: draft.tags,
+        stops: cleanStops(draft.stops),
+        travelMode: draft.travelMode,
       });
       if (close) onClose();
       else onCreated(id);
@@ -346,6 +362,8 @@ export function ItemDialog({
         durationMin: draft.durationMin,
         blurb: draft.blurb,
         tags: draft.tags,
+        stops: cleanStops(draft.stops),
+        travelMode: draft.travelMode,
       });
       // Back to read, on the record that was just written — a save is not a
       // reason to take the card away from whoever was looking at it.
@@ -381,6 +399,8 @@ export function ItemDialog({
       title: draft.title,
       blurb: draft.blurb,
       tags: draft.tags,
+      stops: cleanStops(draft.stops),
+      travelMode: draft.travelMode,
       durationMin: draft.durationMin,
       time: timed ? draft.time : null,
       dayOffset: saved?.dayOffset ?? 0,
@@ -774,6 +794,7 @@ export function ItemDialog({
             <ReadBody
               item={saved}
               trip={trip}
+              cityTitle={city?.title}
               place={place}
               where={where}
               onEditField={enterEdit}
@@ -798,12 +819,20 @@ export function ItemDialog({
 function ReadBody({
   item,
   trip,
+  cityTitle,
   place,
   where,
   onEditField,
 }: {
-  item: { blurb: string; tags: string[] };
+  item: {
+    blurb: string;
+    tags: string[];
+    stops: string[];
+    travelMode: TravelMode | null;
+  };
   trip: { tagColors: Record<string, number>; tagIcons: Record<string, string> };
+  /** Qualifies the stops, so "Liberty" is the London one. */
+  cityTitle?: string;
   place: string | null;
   where: string;
   onEditField: (field: FocusField) => void;
@@ -815,6 +844,18 @@ function ReadBody({
       ) : (
         <ReadSection label="Note">
           <NoteRead value={item.blurb} />
+        </ReadSection>
+      )}
+
+      {item.stops.length === 0 ? (
+        <AddRow label="Add a route" onClick={() => onEditField('route')} />
+      ) : (
+        <ReadSection label="Route">
+          <RouteRead
+            stops={item.stops}
+            travelMode={item.travelMode}
+            city={cityTitle}
+          />
         </ReadSection>
       )}
 
@@ -882,10 +923,18 @@ function EditBody({
   const rootRef = useRef<HTMLDivElement>(null);
 
   // Tapping a dashed "+ Add a time" row in read mode enters edit mode aimed at
-  // that field; this is where the aim lands. The note is left out because its
-  // editor takes focus itself, caret at the end of what is already written.
+  // that field; this is where the aim lands. The note and the route are left
+  // out because their editors take focus themselves — the note with the caret
+  // at the end of what is written, the route in a stop row it opens for you.
   useEffect(() => {
-    if (!focusField || focusField === 'title' || focusField === 'note') return;
+    if (
+      !focusField ||
+      focusField === 'title' ||
+      focusField === 'note' ||
+      focusField === 'route'
+    ) {
+      return;
+    }
     const node = rootRef.current?.querySelector<HTMLElement>(
       `[data-field="${focusField}"] :is(button, input, textarea):not(:disabled)`,
     );
@@ -948,6 +997,16 @@ function EditBody({
           disabled={saving}
           autoFocus={focusField === 'note'}
           onChange={(blurb) => patch({ blurb })}
+        />
+      </div>
+
+      <div data-field="route" className={cn(saving && 'opacity-45')}>
+        <RouteEditor
+          stops={draft.stops}
+          travelMode={draft.travelMode}
+          autoFocus={focusField === 'route'}
+          disabled={saving}
+          onChange={({ stops, travelMode }) => patch({ stops, travelMode })}
         />
       </div>
 
@@ -1045,51 +1104,14 @@ function Pill({
   );
 }
 
-/** The segmented control both Day and Duration wear. */
-function PillGroup<T extends string | number | null>({
-  options,
-  value,
-  onChange,
-  disabled,
-}: {
-  options: { label: string; value: T }[];
-  value: T;
-  onChange: (value: T) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex w-fit flex-wrap items-center gap-1 rounded-full bg-inset p-0.5">
-      {options.map((option) => {
-        const selected = option.value === value;
-        return (
-          <button
-            key={option.label}
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange(option.value)}
-            aria-pressed={selected}
-            className={cn(
-              'h-8 rounded-full px-3 font-display text-[11.5px] font-semibold transition-colors',
-              selected
-                ? 'bg-brand text-brand-contrast'
-                : 'text-muted hover:text-ink',
-            )}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 /**
- * Order matters — a reordered tag list is a changed one. Compared element by
- * element rather than by joining: a tag may contain a space ("book ahead"), so
- * any join would make `['a b']` and `['a', 'b']` look identical.
+ * Order matters — a reordered tag list is a changed one, and so is a reordered
+ * route. Compared element by element rather than by joining: an entry may
+ * contain a space ("book ahead", "Regent St"), so any join would make
+ * `['a b']` and `['a', 'b']` look identical.
  */
-function sameTags(a: string[], b: string[]): boolean {
-  return a.length === b.length && a.every((tag, index) => tag === b[index]);
+function sameSequence(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((entry, index) => entry === b[index]);
 }
 
 function ordinal(n: number): string {
