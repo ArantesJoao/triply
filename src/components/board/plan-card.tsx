@@ -157,12 +157,6 @@ function PlanCardInner({
 
               <Title item={item} variant={variant} className="block" />
 
-              {variant === 'list' && item.blurb && (
-                <span className="mt-1 line-clamp-2 block text-[11.5px] leading-relaxed text-muted">
-                  {item.blurb}
-                </span>
-              )}
-
               {variant !== 'tray' && fit === 'full' && item.tags.length > 0 && (
                 // An axis card's tags row is exactly one 22px line tall, so it
                 // must not wrap: past two chips it counts the rest.

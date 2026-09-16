@@ -1,6 +1,6 @@
 'use client';
 
-import { MoreHorizontal, Plus, Trash2 } from 'lucide-react';
+import { Map as MapIcon, MoreHorizontal, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { IconButton } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 import { BACKLOG_KEY } from '@/lib/board-model';
 
+import { DayMapDialog } from './day-map-dialog';
 import { COLUMN_HEADER_PX } from './geometry';
 import { useColumn, useStore } from './store';
 
@@ -26,6 +27,7 @@ export function ColumnHeader({
   const column = useColumn(columnId);
   const store = useStore();
   const [confirming, setConfirming] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   if (!column) return null;
 
@@ -64,6 +66,17 @@ export function ColumnHeader({
         >
           <Plus size={14} />
         </IconButton>
+
+        {column.timed && (
+          <IconButton
+            label={`View ${column.title} on the map`}
+            size="sm"
+            variant="secondary"
+            onClick={() => setShowMap(true)}
+          >
+            <MapIcon size={14} />
+          </IconButton>
+        )}
 
         <Menu
           actions={[
@@ -119,6 +132,14 @@ export function ColumnHeader({
           Move anything you want to keep into the Backlog first.
         </p>
       </Dialog>
+
+      {column.timed && (
+        <DayMapDialog
+          columnId={columnId}
+          open={showMap}
+          onClose={() => setShowMap(false)}
+        />
+      )}
     </>
   );
 }
