@@ -69,7 +69,7 @@ export function cleanStops(stops: unknown): string[] {
  * Missouri. Only at link time: what was written is what stays stored, and what
  * the card shows.
  */
-function qualify(stop: string, city?: string): string {
+export function qualify(stop: string, city?: string): string {
   if (!city) return stop;
   const trimmed = city.trim();
   if (!trimmed) return stop;

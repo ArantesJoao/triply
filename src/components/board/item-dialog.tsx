@@ -5,6 +5,7 @@ import {
   CalendarX,
   Clock,
   Copy,
+  MapPin,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -30,7 +31,7 @@ import {
 import { TimePicker } from '@/components/ui/time-picker';
 import { cn } from '@/lib/cn';
 import { isEmptyNote } from '@/lib/markdown';
-import { cleanStops, type TravelMode } from '@/lib/maps';
+import { cleanStops, mapsUrlFor, type TravelMode } from '@/lib/maps';
 import {
   commonStartTimes,
   DEFAULT_DURATION_MIN,
@@ -427,6 +428,21 @@ export function ItemDialog({
   const title = saved?.title || 'Name this activity';
 
   /**
+   * The route's link, hoisted to the header on a card that has one.
+   *
+   * The same link sits under the stop list where the route is described, but
+   * that is the bottom of a card whose note can be long — and on the day, the
+   * only thing anyone wants from this sheet is to start walking. Absent
+   * entirely when there are no stops, so it never becomes a dead control.
+   */
+  const routeUrl = saved
+    ? mapsUrlFor(saved.stops, {
+        city: city?.title,
+        travelMode: saved.travelMode,
+      })
+    : null;
+
+  /**
    * An untitled card left over from an abandoned edit — the one case where
    * Edit is the accent action in read mode, because there is nothing to read.
    * A freshly created card never gets here; it opens in edit mode already.
@@ -613,6 +629,24 @@ export function ItemDialog({
         * every user reaches for first with nowhere to land.
         */}
       <div className="flex shrink-0 items-center gap-1.5">
+        {!editing && routeUrl && (
+          <a
+            href={routeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open route in Google Maps"
+            aria-label="Open route in Google Maps"
+            className={cn(
+              'inline-grid shrink-0 place-items-center border border-line bg-card',
+              'text-brand-on-soft transition-colors duration-150 ease-out',
+              'hover:border-brand hover:bg-brand-soft',
+              mobile ? 'size-11 rounded-xl' : 'size-9 rounded-[10px]',
+            )}
+          >
+            <MapPin size={mobile ? 18 : 15} />
+          </a>
+        )}
+
         {!mobile && !editing && (
           <Button
             size="sm"

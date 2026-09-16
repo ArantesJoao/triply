@@ -1,6 +1,7 @@
 import {
   boolean,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -370,3 +371,20 @@ export const items = pgTable(
   },
   (t) => [index('item_column_idx').on(t.columnId)],
 );
+
+/**
+ * Coordinates for a place-name query, resolved once via OpenStreetMap's
+ * Nominatim geocoder and kept forever after — its usage policy requires
+ * caching, and a stop's address does not move. `lat`/`lng` are null when a
+ * lookup came back with no match, so a place that doesn't geocode is
+ * remembered as such instead of being retried on every map open.
+ */
+export const geocodeCache = pgTable('geocode_cache', {
+  /** The qualified stop text ("Kingly Court, London"), lower-cased and trimmed. */
+  query: text('query').primaryKey(),
+  lat: doublePrecision('lat'),
+  lng: doublePrecision('lng'),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

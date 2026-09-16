@@ -7,6 +7,7 @@ import type { BoardDTO } from '@/lib/board-model';
 import { BoardCanvas } from './board-canvas';
 import { BoardHeader } from './board-header';
 import { CueStrip } from './cue-strip';
+import { prefetchDayMaps } from './day-map-cache';
 import {
   BoardStore,
   BoardStoreProvider,
@@ -31,6 +32,27 @@ export function BoardApp({
   // Pick up other people's edits. Polling a revision counter is plenty for a
   // group this size, and it never fires mid-save.
   useEffect(() => store.startPolling(), [store]);
+
+  // Warm every day's map in the background as soon as the board opens, so
+  // the Map button on a day column reads its data off an already-resolved
+  // cache instead of showing "Placing today's stops…" the first time it's
+  // clicked. The active city's days go first, since that's the one the
+  // person is actually looking at.
+  useEffect(() => {
+    const cityIds = [
+      ...(board.activeCityId ? [board.activeCityId] : []),
+      ...board.cities.map((city) => city.id).filter((id) => id !== board.activeCityId),
+    ];
+    const columnIds = cityIds.flatMap((cityId) =>
+      (board.cities.find((city) => city.id === cityId)?.columns ?? [])
+        .filter((column) => column.timed && column.items.length > 0)
+        .map((column) => column.id),
+    );
+    prefetchDayMaps(board.id, columnIds);
+    // Only the board this component was mounted for — not `board` itself,
+    // which would re-run this on every store update rather than once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.id]);
 
   return (
     <BoardStoreProvider value={store}>

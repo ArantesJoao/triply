@@ -29,23 +29,15 @@ import { SheetLabel, useSheetIsMobile } from './sheet';
  */
 
 /**
- * Long notes scroll rather than pushing the sheet's tail away. The cap is in
- * `.prose-note` lines: 14px text at 1.7 line-height, from `globals.css`.
+ * A note is however long it is: no cap, no scroller of its own.
+ *
+ * The sheet body is already a scrolling region, and a second one nested inside
+ * it splits a single card into two things to scroll — the note reaches its end
+ * while the route below is still off-screen, and the outer scrollbar sits next
+ * to an inner one that looks just like it. One card, one scroll.
  */
-const MAX_LINES = 10;
-const MAX_HEIGHT = `${Math.round(MAX_LINES * 14 * 1.7)}px`;
-
 export function NoteRead({ value }: { value: string }) {
-  return (
-    <div
-      // `overscroll-contain` keeps a note that has hit its end from carrying
-      // the scroll on into the sheet behind it.
-      className="scroll-slim overflow-y-auto overscroll-contain"
-      style={{ maxHeight: MAX_HEIGHT }}
-    >
-      <Markdown source={value} />
-    </div>
-  );
+  return <Markdown source={value} />;
 }
 
 export function NoteEditor({
