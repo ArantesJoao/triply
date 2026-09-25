@@ -162,8 +162,10 @@
   }
 
   /* A page that scrolls on the body would otherwise slide its content up
-     under the status bar. This strip holds the top inset at the page colour;
-     sticky headers stick at `top-[env(safe-area-inset-top)]`, just below it.
+     under the status bar. This strip holds the top inset at the page colour,
+     or at the header's card colour on screens that open with an app header
+     (`data-app-header`), so the status bar reads as part of that header.
+     Sticky headers stick at `top-[env(safe-area-inset-top)]`, just below it.
      Under z-50 so sheets and dialogs still dim it. */
   body::before {
     content: '';
@@ -173,6 +175,10 @@
     height: env(safe-area-inset-top);
     background: var(--surface-page);
     pointer-events: none;
+  }
+
+  body:has([data-app-header])::before {
+    background: var(--surface-card);
   }
 
   /* Tailwind v4 dropped the automatic pointer cursor on interactive elements.
