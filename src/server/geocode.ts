@@ -161,13 +161,14 @@ export type DayMap = {
  * actually walk up to — plus the road-following line through them and a
  * single Google Maps link for the whole day.
  *
- * Most cards never get a stop typed in even when the title already names the
- * place — "Uffizi Gallery" as the title is exactly as geocodable as it would
- * be as a stop. So a title-only card falls back to its own title rather than
- * being left off the map, and only cards with neither (or wherever neither
- * geocodes) are skipped. A generic title ("Lunch", "Pack bags") simply
- * fails to geocode and drops out the same way — there is no separate check
- * for whether a title "looks like" a place.
+ * A card with no stops only gets a pin when it's explicitly marked
+ * `isPlace: true` — see that column's own doc comment in `src/lib/db/schema.ts`
+ * and `itemProperties.isPlace` in `src/app/api/mcp/route.ts` for why: a title
+ * is never as deliberate a place name as a typed-in stop ("Lunch" geocodes
+ * just fine, to whichever obscure business happens to be named that), so
+ * trip.ly asks rather than guesses. `isPlace: false` or `null` — including
+ * every card that predates this field — is treated the same: not a place,
+ * no pin, no geocoding attempted at all.
  */
 export async function geocodeColumn(
   tripId: string,
@@ -211,6 +212,8 @@ export async function geocodeColumn(
       );
       continue;
     }
+
+    if (row.isPlace !== true) continue;
 
     const title = row.title.trim();
     if (!title) continue;

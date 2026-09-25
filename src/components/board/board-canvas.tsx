@@ -305,18 +305,19 @@ export function BoardCanvas({
     timedColumns.length === 0 &&
     listColumns.every((column) => column.itemIds.length === 0);
 
-  // On phones one day fills the viewport; the rail moves between days.
-  const visibleTimed =
-    compact && timedColumns.length > 0
-      ? timedColumns.filter(
-          (column) => column.id === (focusColumnId ?? timedColumns[0].id),
-        )
-      : timedColumns;
+  // On phones one column fills the viewport; the rail moves between them.
+  // With nothing picked yet (or a ?col= from another city) it opens on the
+  // first day, as if that had been tapped.
+  const mobileColumnId =
+    focusColumnId ?? timedColumns[0]?.id ?? listColumns[0]?.id;
 
-  const visibleLists =
-    compact && focusColumnId
-      ? listColumns.filter((column) => column.id === focusColumnId)
-      : listColumns;
+  const visibleTimed = compact
+    ? timedColumns.filter((column) => column.id === mobileColumnId)
+    : timedColumns;
+
+  const visibleLists = compact
+    ? listColumns.filter((column) => column.id === mobileColumnId)
+    : listColumns;
 
   const showTimed = visibleTimed.length > 0;
 
@@ -344,7 +345,7 @@ export function BoardCanvas({
             timed: column.timed,
             count: column.itemIds.length,
           }))}
-          activeId={focusColumnId ?? timedColumns[0]?.id ?? listColumns[0]?.id}
+          activeId={mobileColumnId}
           onSelect={setFocusColumnId}
           onAddColumn={() => setAddingColumn(true)}
         />

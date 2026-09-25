@@ -37,6 +37,14 @@ export const metadata: Metadata = {
     title: 'trip.ly',
     description,
   },
+  // Installed to the home screen, run full-screen with a transparent status
+  // bar: the page draws under it, and `body` pads itself clear of it (see
+  // globals.css), so the bars take the page colour instead of black.
+  appleWebApp: {
+    capable: true,
+    title: 'trip.ly',
+    statusBarStyle: 'black-translucent',
+  },
   // No `icons` here on purpose: `src/app/icon.svg` is picked up by the file
   // convention, which emits the link with a content hash for cache busting.
   // Naming it here as well would emit a second, unhashed link.
@@ -49,6 +57,9 @@ export const viewport: Viewport = {
   ],
   width: 'device-width',
   initialScale: 1,
+  // Lay out edge to edge, under the notch and home indicator; the safe-area
+  // insets are handed back as padding in globals.css.
+  viewportFit: 'cover',
   // The board is a lot of small controls; let people zoom.
   maximumScale: 5,
 };

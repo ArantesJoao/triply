@@ -360,6 +360,15 @@ export const items = pgTable(
     stops: text('stops').array().notNull().default([]),
     /** How that route is travelled. Null means walking, which is most of them. */
     travelMode: varchar('travel_mode', { length: 16 }),
+    /**
+     * Marks a card as a real, visitable place for the day map — checked only
+     * when `stops` is empty; a card with stops is always shown regardless,
+     * since typing one already says "this is a place." Null (the default,
+     * and what every pre-existing card has) behaves exactly like false: the
+     * card just doesn't appear on the map. See `itemProperties.isPlace` in
+     * `src/app/api/mcp/route.ts` for the full guidance an editing agent gets.
+     */
+    isPlace: boolean('is_place'),
     /** Ordering within a list column, and tie-break within the tray. */
     position: integer('position').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })

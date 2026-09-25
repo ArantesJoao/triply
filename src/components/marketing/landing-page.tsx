@@ -150,7 +150,7 @@ export function LandingPage({
   }, [activeCity]);
 
   return (
-    <div className="min-h-dvh w-full overflow-x-hidden bg-page">
+    <div className="min-h-app w-full overflow-x-hidden bg-page">
       {/* 40px below the top — once scrolled past, the header darkens slightly. */}
       <div
         ref={headerSentinelRef}
@@ -160,7 +160,7 @@ export function LandingPage({
 
       <header
         className={cn(
-          'sticky top-0 z-20 border-b backdrop-blur-md transition-colors duration-150',
+          'sticky top-[env(safe-area-inset-top)] z-20 border-b backdrop-blur-md transition-colors duration-150',
           headerScrolled ? 'border-line-strong bg-page/95' : 'border-line bg-page/85',
         )}
       >

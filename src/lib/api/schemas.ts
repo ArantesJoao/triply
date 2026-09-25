@@ -79,6 +79,12 @@ export const itemInput = z.object({
    */
   stops: z.array(z.string().max(200)).max(25).optional(),
   travelMode: z.enum(TRAVEL_MODES).nullable().optional(),
+  /**
+   * Marks the card as a real place for the day map when it has no `stops` —
+   * see `itemProperties.isPlace` in the MCP route for the full guidance.
+   * Null/omitted behaves like false: no pin, nothing geocoded.
+   */
+  isPlace: z.boolean().nullable().optional(),
 });
 
 export const columnInput = z.object({

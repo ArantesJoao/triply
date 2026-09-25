@@ -43,6 +43,20 @@
       "when": 1789576983354,
       "tag": "0005_remarkable_liz_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789580891720,
+      "tag": "0006_sticky_mentallo",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789589379158,
+      "tag": "0007_plain_baron_strucker",
+      "breakpoints": true
     }
   ]
 }

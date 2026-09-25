@@ -387,7 +387,7 @@ export function Sheet({
         className={cn(
           'relative flex w-full flex-col bg-card outline-none',
           mobile
-            ? 'rounded-t-2xl shadow-[0_-8px_34px_rgba(15,18,48,0.28)]'
+            ? 'rounded-t-2xl pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_34px_rgba(15,18,48,0.28)]'
             : cn(
                 'max-h-[80vh] overflow-hidden rounded-[20px] border border-line shadow-float',
                 WIDTHS[width],

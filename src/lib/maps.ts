@@ -136,3 +136,14 @@ export const TRAVEL_MODE_LABELS: Record<TravelMode, string> = {
   driving: 'Drive',
   bicycling: 'Bike',
 };
+
+/**
+ * The one explanation of what `isPlace` does, so every place it shows up in
+ * the UI — today just the card's own toggle, but any future map view that
+ * surfaces the setting too — says the same thing. Deliberately shorter and
+ * more casual than `itemProperties.isPlace` in the MCP route: that one is
+ * instructing a model on when to set the field; this one is a single line
+ * under a switch a person has just tapped.
+ */
+export const IS_PLACE_HELP =
+  "Shows this card as a pin on the day map. Only matters when there's no route above — a card with stops already gets a pin.";

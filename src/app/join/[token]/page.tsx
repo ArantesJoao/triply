@@ -29,7 +29,7 @@ export default async function JoinPage({ params }: Props) {
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center px-6">
+    <main className="grid min-h-app place-items-center px-6">
       <div className="max-w-sm text-center">
         <RouteMark width={120} className="mx-auto mb-6 opacity-50" />
         <h1 className="font-display text-xl font-bold">This link has expired</h1>

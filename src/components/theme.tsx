@@ -15,6 +15,12 @@ export type Theme = 'light' | 'dark' | 'system';
 
 const STORAGE_KEY = 'triply-theme';
 
+// `--surface-page` in each theme. The browser chrome and status bar take this
+// colour, so it has to follow the in-app toggle, not just the OS preference
+// the `theme-color` media queries in layout.tsx can see.
+const PAGE_LIGHT = '#FAFAF8';
+const PAGE_DARK = '#0F1230';
+
 /**
  * Runs before paint so a dark-mode user never sees a white flash. Kept in sync
  * with `applyTheme` below.
@@ -27,6 +33,9 @@ export const themeScript = `
       ((!stored || stored === 'system') &&
         window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', dark);
+    document.querySelectorAll('meta[name="theme-color"]').forEach(function(m){
+      m.setAttribute('content', dark ? '${PAGE_DARK}' : '${PAGE_LIGHT}');
+    });
   } catch (e) {}
 })();
 `;
@@ -37,6 +46,9 @@ function applyTheme(theme: Theme) {
     (theme === 'system' &&
       window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('dark', dark);
+  document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+    meta.setAttribute('content', dark ? PAGE_DARK : PAGE_LIGHT);
+  });
 }
 
 const ThemeContext = createContext<{
@@ -50,6 +62,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
     if (stored) setThemeState(stored);
+    // Again after hydration: Next may place the `theme-color` tags after the
+    // inline script, too late for it to have found them.
+    applyTheme(stored ?? 'system');
   }, []);
 
   // Follow the OS while the preference is "system".
