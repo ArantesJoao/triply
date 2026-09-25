@@ -29,7 +29,7 @@ export function BoardHeader({ user }: { user: { name: string; image: string | nu
 
   return (
     <>
-      <header className="flex shrink-0 items-center gap-3 border-b border-line bg-card px-4 py-2.5">
+      <header data-app-header className="flex shrink-0 items-center gap-3 border-b border-line bg-card px-4 py-2.5">
         <Link href="/" aria-label="All trips" className="shrink-0">
           <Logo size="sm" />
         </Link>

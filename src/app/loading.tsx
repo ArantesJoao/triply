@@ -13,7 +13,7 @@ export default function TripsLoading() {
   return (
     <div className="min-h-app bg-page">
       {/* ── Header ── */}
-      <header className="flex items-center gap-3 border-b border-line bg-card px-4 py-3 sm:px-6">
+      <header data-app-header className="flex items-center gap-3 border-b border-line bg-card px-4 py-3 sm:px-6">
         <Logo size="sm" />
         <div className="flex-1" />
         <ThemeToggle />
