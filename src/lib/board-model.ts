@@ -28,6 +28,15 @@ export type ItemDTO = {
   /** How the route is travelled. Null means walking. */
   travelMode: TravelMode | null;
   /**
+   * Whether this card is a real, visitable place — checked only when `stops`
+   * is empty, to decide whether the day map should try to geocode the title.
+   * Null (every card written before this field existed included) behaves
+   * exactly like false. See `IS_PLACE_HELP` in `@/lib/maps` for the
+   * human-facing wording, and `itemProperties.isPlace` in the MCP route for
+   * the fuller guidance an editing agent gets.
+   */
+  isPlace: boolean | null;
+  /**
    * The Google Maps link for `stops`, derived rather than stored — the server
    * builds it because it knows the city, and it is read-only: sending it back
    * in a write changes nothing.

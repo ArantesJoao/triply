@@ -31,7 +31,7 @@ import {
 import { TimePicker } from '@/components/ui/time-picker';
 import { cn } from '@/lib/cn';
 import { isEmptyNote } from '@/lib/markdown';
-import { cleanStops, mapsUrlFor, type TravelMode } from '@/lib/maps';
+import { cleanStops, IS_PLACE_HELP, mapsUrlFor, type TravelMode } from '@/lib/maps';
 import {
   commonStartTimes,
   DEFAULT_DURATION_MIN,
@@ -65,6 +65,7 @@ type Draft = {
   /** Kept as typed, blank lines and all; cleaned on the way to the server. */
   stops: string[];
   travelMode: TravelMode | null;
+  isPlace: boolean | null;
 };
 
 /** Which control the flip into edit mode should land on. */
@@ -93,6 +94,7 @@ const draftFromItem = (item: ItemRecord): Draft => ({
   tags: item.tags,
   stops: item.stops,
   travelMode: item.travelMode,
+  isPlace: item.isPlace,
 });
 
 const blankDraft = (time: string | null): Draft => ({
@@ -103,6 +105,7 @@ const blankDraft = (time: string | null): Draft => ({
   tags: [],
   stops: [],
   travelMode: null,
+  isPlace: null,
 });
 
 const sameDraft = (a: Draft, b: Draft) =>
@@ -111,6 +114,7 @@ const sameDraft = (a: Draft, b: Draft) =>
   a.durationMin === b.durationMin &&
   a.blurb === b.blurb &&
   a.travelMode === b.travelMode &&
+  a.isPlace === b.isPlace &&
   // Compared cleaned, so a trailing newline left behind by an edit that ended
   // up where it started doesn't count as an unsaved change.
   sameSequence(cleanStops(a.stops), cleanStops(b.stops)) &&
@@ -343,6 +347,7 @@ export function ItemDialog({
         tags: draft.tags,
         stops: cleanStops(draft.stops),
         travelMode: draft.travelMode,
+        isPlace: draft.isPlace,
       });
       if (close) onClose();
       else onCreated(id);
@@ -365,6 +370,7 @@ export function ItemDialog({
         tags: draft.tags,
         stops: cleanStops(draft.stops),
         travelMode: draft.travelMode,
+        isPlace: draft.isPlace,
       });
       // Back to read, on the record that was just written — a save is not a
       // reason to take the card away from whoever was looking at it.
@@ -402,6 +408,7 @@ export function ItemDialog({
       tags: draft.tags,
       stops: cleanStops(draft.stops),
       travelMode: draft.travelMode,
+      isPlace: draft.isPlace,
       durationMin: draft.durationMin,
       time: timed ? draft.time : null,
       dayOffset: saved?.dayOffset ?? 0,
@@ -1044,6 +1051,18 @@ function EditBody({
         />
       </div>
 
+      {/* Only meaningful without a route — a card with stops is already on
+          the map, so the toggle would be a control with nothing to do. */}
+      {cleanStops(draft.stops).length === 0 && (
+        <div data-field="place" className={cn(saving && 'opacity-45')}>
+          <PlaceToggle
+            checked={draft.isPlace === true}
+            disabled={saving}
+            onChange={(isPlace) => patch({ isPlace })}
+          />
+        </div>
+      )}
+
       <div data-field="tags" className={cn(saving && 'opacity-45')}>
         <SheetLabel>Tags</SheetLabel>
         <TagInput
@@ -1112,6 +1131,49 @@ function EditBody({
 /* ===================================================================== *
  * Small shared bits
  * ===================================================================== */
+
+/**
+ * A plain on/off switch rather than a checkbox — the field it drives isn't
+ * "checked" so much as flipped between two states, and a switch says that at
+ * a glance. Its caption is `IS_PLACE_HELP` from `@/lib/maps`, the one place
+ * that copy lives, so every surface that shows it — today just this row —
+ * says exactly the same thing.
+ */
+function PlaceToggle({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <SheetLabel htmlFor="item-place-toggle">On the map</SheetLabel>
+      <button
+        id="item-place-toggle"
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          'relative h-6 w-10 shrink-0 rounded-full border transition-colors duration-150 ease-out',
+          checked ? 'border-brand bg-brand' : 'border-line-strong bg-subtle',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-0.5 size-4.5 rounded-full bg-card shadow-card transition-transform duration-150 ease-out',
+            checked ? 'left-[19px]' : 'left-0.5',
+          )}
+        />
+      </button>
+      <p className="mt-1.5 max-w-xs text-[12px] text-faint">{IS_PLACE_HELP}</p>
+    </div>
+  );
+}
 
 function Pill({
   children,

@@ -423,7 +423,7 @@ function TimeDrawer({
           transform: shown ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 500ms cubic-bezier(0.32, 0.72, 0, 1)',
         }}
-        className="relative w-full rounded-t-2xl bg-card px-[18px] pt-2 pb-6 shadow-[0_-8px_34px_rgba(15,18,48,0.28)]"
+        className="relative w-full rounded-t-2xl bg-card px-[18px] pt-2 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-8px_34px_rgba(15,18,48,0.28)]"
       >
         <div aria-hidden="true" className="flex justify-center pb-3">
           <span className="h-2 w-25 rounded-full bg-line" />

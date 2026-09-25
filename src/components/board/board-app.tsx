@@ -56,7 +56,7 @@ export function BoardApp({
 
   return (
     <BoardStoreProvider value={store}>
-      <div className="flex h-dvh flex-col overflow-hidden bg-page">
+      <div className="flex h-app flex-col overflow-hidden bg-page">
         <BoardHeader user={user} />
         <ActiveCityBoard />
       </div>

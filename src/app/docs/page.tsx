@@ -138,7 +138,7 @@ const METHOD_TONE: Record<string, string> = {
 
 export default function DocsPage() {
   return (
-    <div className="min-h-dvh bg-page">
+    <div className="min-h-app bg-page">
       <header className="flex items-center gap-3 border-b border-line bg-card px-4 py-3 sm:px-6">
         <Link href="/" aria-label="All trips">
           <Logo size="sm" />

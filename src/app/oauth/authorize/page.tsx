@@ -259,7 +259,7 @@ function Problem({ title, detail }: { title: string; detail: string }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="grid min-h-dvh place-items-center px-6 py-12">
+    <main className="grid min-h-app place-items-center px-6 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
           <Logo size="md" />

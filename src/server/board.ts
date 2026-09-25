@@ -55,6 +55,7 @@ function toItemDTO(
     stops,
     travelMode,
     mapsUrl: mapsUrlFor(stops, { city: cityTitle, travelMode }),
+    isPlace: row.isPlace,
     position: row.position,
   };
 }
@@ -445,6 +446,7 @@ export type ItemInput = {
   tags?: string[];
   stops?: string[];
   travelMode?: TravelMode | null;
+  isPlace?: boolean | null;
 };
 
 const cleanTags = (tags: unknown): string[] => {
@@ -496,6 +498,7 @@ export async function createItem(
     tags: cleanTags(input.tags),
     stops,
     travelMode: input.travelMode ?? null,
+    isPlace: input.isPlace ?? null,
     position: await nextPosition(db, column.id),
   });
 
@@ -542,6 +545,7 @@ export async function updateItem(
   if (patch.dayOffset !== undefined) set.dayOffset = patch.dayOffset;
   if (patch.stops !== undefined) set.stops = cleanStops(patch.stops);
   if (patch.travelMode !== undefined) set.travelMode = patch.travelMode;
+  if (patch.isPlace !== undefined) set.isPlace = patch.isPlace;
 
   if (patch.time !== undefined) {
     const time = normaliseTime(patch.time);
@@ -715,6 +719,7 @@ async function insertItems(tx: Tx, columnId: string, list: ItemInput[]) {
       tags: cleanTags(item.tags),
       stops: cleanStops(item.stops),
       travelMode: item.travelMode ?? null,
+      isPlace: item.isPlace ?? null,
       position: index,
     })),
   );

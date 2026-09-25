@@ -657,6 +657,7 @@ export class BoardStore {
       tags: [],
       stops: [],
       travelMode: null,
+      isPlace: null,
       // Filled in by the server, which is where the city that qualifies the
       // stops is known. The dialog builds its own link from the draft anyway.
       mapsUrl: null,
@@ -713,6 +714,7 @@ export class BoardStore {
             tags: optimistic.tags,
             stops: optimistic.stops,
             travelMode: optimistic.travelMode,
+            isPlace: optimistic.isPlace,
           }),
         },
       );

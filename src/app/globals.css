@@ -122,6 +122,15 @@
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* The viewport height left once the body's safe-area padding is taken out. */
+@utility h-app {
+  height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
+@utility min-h-app {
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -130,13 +139,40 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    /* Painted behind the safe areas and any overscroll bounce, so the edges
+       of the screen are the page colour rather than black. */
+    background: var(--surface-page);
   }
 
+  /*
+   * The viewport is `viewport-fit=cover` and, installed, the iOS status bar is
+   * translucent — the page is laid out under the notch and home indicator.
+   * The body gives the insets back as padding; its background runs through
+   * them, so the bars read as part of the page. Full-height screens size
+   * themselves with `h-app` / `min-h-app` (above), which subtract the same
+   * insets, instead of `100dvh`.
+   */
   body {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
     background: var(--surface-page);
     color: var(--text-primary);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* A page that scrolls on the body would otherwise slide its content up
+     under the status bar. This strip holds the top inset at the page colour;
+     sticky headers stick at `top-[env(safe-area-inset-top)]`, just below it.
+     Under z-50 so sheets and dialogs still dim it. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 40;
+    height: env(safe-area-inset-top);
+    background: var(--surface-page);
+    pointer-events: none;
   }
 
   /* Tailwind v4 dropped the automatic pointer cursor on interactive elements.

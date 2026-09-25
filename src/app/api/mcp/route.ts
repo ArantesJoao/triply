@@ -167,6 +167,14 @@ const itemProperties = {
     description:
       'How the stops are travelled. Defaults to walking, which is what a wander is; set it for a day that rides the metro or drives between stops.',
   },
+  isPlace: {
+    type: ['boolean', 'null'],
+    description: [
+      'Whether this activity is a real, visitable physical location that belongs on the trip\'s day map — a restaurant, museum, viewpoint, shop, park, landmark. Only consulted when `stops` is empty: a card with stops is always shown on the map regardless of this field, since typing a stop already says "this is a place." Do not set it on a card that has stops — it has no effect there.',
+      'Set true when the title itself names one specific place someone could walk into or stand at, however small or obscure — "Bar Luce", "Shakespeare and Company", "Trocadéro viewpoint", "Nonna\'s Kitchen". Set false, or simply omit the field, for anything that is not a place: a meal with no chosen venue ("Lunch", "Dinner"), logistics ("Pack bags", "Check out", "Buy tickets"), unstructured time ("Free time", "Rest"), travel between cities, or a vague plan ("Explore the neighbourhood").',
+      "Default is null (also true of every card written before this field existed), which is treated exactly like false: no pin, nothing geocoded. That is the safe default — a generic title fed to a geocoder can match an obscure, wrong, same-named place kilometres from where the day actually happens, so leave it unset rather than guess when it's unclear.",
+    ].join('\n\n'),
+  },
 } as const;
 
 const columnSchema = {

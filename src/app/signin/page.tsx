@@ -93,7 +93,7 @@ export default async function SignInPage({
   const { eyebrow, title, body } = contextFor(destination);
 
   return (
-    <main className="grid min-h-dvh bg-page lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+    <main className="grid min-h-app bg-page lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
       {/* Sign-in column. The only thing on small screens. */}
       <div className="flex min-w-0 flex-col px-6 py-8 sm:px-10 lg:py-10">
         <Link href="/" aria-label="trip.ly home" className="w-fit">
