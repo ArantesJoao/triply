@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   CalendarX,
+  Check,
   Clock,
   Copy,
   MapPin,
@@ -450,6 +451,14 @@ export function ItemDialog({
     : null;
 
   /**
+   * A card the day map pins — one with a route, or marked a place. Only these
+   * get the done toggle: done means "drop it from the day's route", which
+   * says nothing about a card that was never on it.
+   */
+  const spot =
+    saved != null && (cleanStops(saved.stops).length > 0 || saved.isPlace === true);
+
+  /**
    * An untitled card left over from an abandoned edit — the one case where
    * Edit is the accent action in read mode, because there is nothing to read.
    * A freshly created card never gets here; it opens in edit mode already.
@@ -652,6 +661,25 @@ export function ItemDialog({
           >
             <MapPin size={mobile ? 18 : 15} />
           </a>
+        )}
+
+        {!editing && spot && savedId && (
+          <button
+            type="button"
+            aria-pressed={saved.done}
+            title={saved.done ? 'Done — tap to put it back on the route' : 'Mark as done'}
+            aria-label={saved.done ? 'Done — put back on the route' : 'Mark as done'}
+            onClick={() => void store.setItemDone(savedId, !saved.done)}
+            className={cn(
+              'inline-grid shrink-0 place-items-center border transition-colors duration-150 ease-out',
+              saved.done
+                ? 'border-brand bg-brand text-brand-contrast hover:bg-brand-hover'
+                : 'border-line bg-card text-muted hover:border-brand hover:bg-brand-soft hover:text-brand-on-soft',
+              mobile ? 'size-11 rounded-xl' : 'size-9 rounded-[10px]',
+            )}
+          >
+            <Check size={mobile ? 18 : 15} />
+          </button>
         )}
 
         {!mobile && !editing && (

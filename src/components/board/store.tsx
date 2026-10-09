@@ -11,6 +11,8 @@ import {
 import type { BoardDTO, ItemDTO } from '@/lib/board-model';
 import { DEFAULT_DAY_START_MIN, DEFAULT_DURATION_MIN } from '@/lib/time';
 
+import { forgetDayMap } from './day-map-cache';
+
 /* ------------------------------------------------------------------ *
  * Normalised state.
  *
@@ -658,6 +660,7 @@ export class BoardStore {
       stops: [],
       travelMode: null,
       isPlace: null,
+      done: false,
       // Filled in by the server, which is where the city that qualifies the
       // stops is known. The dialog builds its own link from the draft anyway.
       mapsUrl: null,
@@ -806,6 +809,34 @@ export class BoardStore {
       },
       'save the card',
     );
+  }
+
+  /**
+   * Marks a card visited, or not. Unlike {@link patchItem} it resolves only
+   * once the write has landed (or failed, onto the save strip), and then drops
+   * the column's cached day map — the server leaves done cards off the map,
+   * so a map fetched before the write would still show this one.
+   */
+  async setItemDone(itemId: string, done: boolean): Promise<void> {
+    const resolved = this.resolveId(itemId);
+    const item = this.state.items[resolved];
+    if (!item || item.done === done) return;
+
+    await this.commit(
+      (state) => ({
+        ...state,
+        items: { ...state.items, [resolved]: { ...state.items[resolved], done } },
+      }),
+      async () => {
+        const realId = await this.awaitRealId(itemId);
+        return request(`${this.base}/items/${realId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ done }),
+        });
+      },
+      done ? 'mark the card done' : 'mark the card not done',
+    );
+    forgetDayMap(item.columnId);
   }
 
   /**

@@ -369,6 +369,12 @@ export const items = pgTable(
      * `src/app/api/mcp/route.ts` for the full guidance an editing agent gets.
      */
     isPlace: boolean('is_place'),
+    /**
+     * Visited already. The day map leaves a done card out entirely — no pin,
+     * not a stop on the drawn route or the day's Google Maps link — so on the
+     * day, opening the route starts from what is still ahead.
+     */
+    done: boolean('done').notNull().default(false),
     /** Ordering within a list column, and tie-break within the tray. */
     position: integer('position').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })

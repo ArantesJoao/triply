@@ -1,0 +1,1 @@
+ALTER TABLE "item" ADD COLUMN "done" boolean DEFAULT false NOT NULL;

@@ -36,6 +36,8 @@ export type ItemDTO = {
    * the fuller guidance an editing agent gets.
    */
   isPlace: boolean | null;
+  /** Visited already — the day map leaves it out of its pins and route. */
+  done: boolean;
   /**
    * The Google Maps link for `stops`, derived rather than stored — the server
    * builds it because it knows the city, and it is read-only: sending it back

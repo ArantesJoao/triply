@@ -223,6 +223,8 @@ function Title({
           ? 'truncate text-[12px] leading-snug'
           : 'text-[13px] leading-[18px]',
         variant === 'axis' && 'truncate',
+        // Visited — still on the plan, just no longer ahead.
+        item.done && 'text-muted line-through',
         className,
       )}
     >

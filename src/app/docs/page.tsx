@@ -103,7 +103,7 @@ const ENDPOINTS: {
       [
         'POST',
         '/api/trips/:tripId/columns/:column/items',
-        'Body: { title?, time?, dayOffset?, durationMin?, blurb?, tags?, stops?, travelMode? }',
+        'Body: { title?, time?, dayOffset?, durationMin?, blurb?, tags?, stops?, travelMode?, isPlace?, done? }',
       ],
       ['PATCH', '/api/trips/:tripId/items/:itemId', 'Same fields, all optional.'],
       ['DELETE', '/api/trips/:tripId/items/:itemId', ''],
@@ -216,7 +216,7 @@ POST /api/oauth/revoke       RFC 7009`}</Code>
 City   { id, key, title, dayStartMin, position, columns[] }
 Column { id, key, title, timed, date, position, items[] }
 Item   { id, title, time, dayOffset, durationMin, blurb, tags[],
-         stops[], travelMode, mapsUrl, position }`}</Code>
+         stops[], travelMode, isPlace, done, mapsUrl, position }`}</Code>
           <ul className="mt-3 flex flex-col gap-2 text-[13px] leading-relaxed text-muted">
             <li>
               <B>time</B> — 24-hour <C>&quot;HH:MM&quot;</C>, or{' '}
@@ -241,6 +241,17 @@ Item   { id, title, time, dayOffset, durationMin, blurb, tags[],
               stop doesn&apos;t already name it, so short names are enough.{' '}
               <B>travelMode</B> is <C>walking</C> unless set to{' '}
               <C>transit</C>, <C>driving</C> or <C>bicycling</C>.
+            </li>
+            <li>
+              <B>isPlace</B> — puts a card with no <C>stops</C> on the day map,
+              pinned at its title. <C>null</C> (the default) means no pin; a
+              card with stops is pinned regardless.
+            </li>
+            <li>
+              <B>done</B> — <C>true</C> once the place has been visited. A done
+              card stays on the board but is left off the day map: no pin, and
+              not a stop on the day&apos;s route or its Google Maps link.
+              Defaults to <C>false</C>.
             </li>
             <li>
               <B>mapsUrl</B> — read-only, derived from <C>stops</C> on the way

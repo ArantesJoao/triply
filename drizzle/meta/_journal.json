@@ -57,6 +57,13 @@
       "when": 1789589379158,
       "tag": "0007_plain_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791564190673,
+      "tag": "0008_military_morph",
+      "breakpoints": true
     }
   ]
 }

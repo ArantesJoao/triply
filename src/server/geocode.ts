@@ -169,6 +169,9 @@ export type DayMap = {
  * trip.ly asks rather than guesses. `isPlace: false` or `null` — including
  * every card that predates this field — is treated the same: not a place,
  * no pin, no geocoding attempted at all.
+ *
+ * A card marked `done` is skipped the same way: it was visited already, so it
+ * is neither a pin nor a stop on the day's route or its Google Maps link.
  */
 export async function geocodeColumn(
   tripId: string,
@@ -190,6 +193,8 @@ export async function geocodeColumn(
   const modeVotes = new Map<TravelMode, number>();
 
   for (const row of rows) {
+    if (row.done) continue;
+
     const stops = cleanStops(row.stops);
     const travelMode = isTravelMode(row.travelMode) ? row.travelMode : null;
 
