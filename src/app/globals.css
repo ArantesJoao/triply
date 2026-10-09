@@ -446,6 +446,25 @@
 .triply-leaflet-popup .leaflet-popup-content a:hover {
   text-decoration: underline;
 }
+/* "Mark as done" — a full-width pill under the link, sized for a thumb. */
+.triply-leaflet-popup .leaflet-popup-content .triply-leaflet-popup-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.triply-leaflet-popup .leaflet-popup-content .triply-leaflet-popup-done:hover {
+  background: var(--surface-subtle);
+}
 .triply-leaflet-popup .leaflet-popup-close-button {
   color: var(--text-tertiary) !important;
 }

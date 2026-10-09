@@ -7,9 +7,10 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Dialog } from '@/components/ui/dialog';
 import { cn } from '@/lib/cn';
+import { cleanStops } from '@/lib/maps';
 
 import { fetchDayMap, type DayMap } from './day-map-cache';
-import { useColumn, useTrip } from './store';
+import { useColumn, useColumnItems, useStore, useTrip } from './store';
 
 /** Google's own route-line blue — keeps the drawn line reading as "a route", not a brand accent. */
 const ROUTE_COLOR = '#4285F4';
@@ -57,15 +58,42 @@ export function DayMapDialog({
   onClose: () => void;
 }) {
   const column = useColumn(columnId);
+  const columnItems = useColumnItems(columnId);
+  const store = useStore();
   const trip = useTrip();
   const mapEl = useRef<HTMLDivElement>(null);
   const [dayMap, setDayMap] = useState<DayMap | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Bumped after a done toggle lands, to ask the server for the map again. */
+  const [version, setVersion] = useState(0);
+
+  /**
+   * Spots already visited — the server leaves these off the map, so this is
+   * the only place they can be seen, and brought back, from here.
+   */
+  const doneSpots = columnItems.filter(
+    (item) => item.done && (cleanStops(item.stops).length > 0 || item.isPlace === true),
+  );
+
+  const setDone = async (itemIds: string[], done: boolean) => {
+    await Promise.all(itemIds.map((id) => store.setItemDone(id, done)));
+    setVersion((v) => v + 1);
+  };
+  // The map's popups are built outside React, once per map; a ref lets their
+  // button reach the current handler without redrawing the map for it.
+  const setDoneRef = useRef(setDone);
+  useEffect(() => {
+    setDoneRef.current = setDone;
+  });
 
   useEffect(() => {
     if (!open) return;
     setDayMap(null);
     setError(null);
+  }, [open, trip.id, columnId]);
+
+  useEffect(() => {
+    if (!open) return;
     let cancelled = false;
 
     // Already warm from the background prefetch almost every time — this
@@ -83,7 +111,7 @@ export function DayMapDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, trip.id, columnId]);
+  }, [open, trip.id, columnId, version]);
 
   const pins = dayMap?.pins ?? null;
 
@@ -140,16 +168,28 @@ export function DayMapDialog({
       }
 
       pins.forEach((pin, index) => {
+        const content = document.createElement('div');
+        content.innerHTML =
+          `<strong>${index + 1}. ${escapeHtml(pin.title)}</strong>` +
+          (pin.time ? `<span class="triply-leaflet-popup-time">${escapeHtml(pin.time)}</span>` : '') +
+          (pin.mapsUrl
+            ? `<a href="${pin.mapsUrl}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
+            : '');
+
+        const done = document.createElement('button');
+        done.type = 'button';
+        done.className = 'triply-leaflet-popup-done';
+        done.textContent = 'Mark as done';
+        done.addEventListener('click', () => {
+          done.disabled = true;
+          done.textContent = 'Marking…';
+          void setDoneRef.current([pin.itemId], true);
+        });
+        content.append(done);
+
         L.marker([pin.lat, pin.lng], { icon: pinIcon(L, index) })
           .addTo(map!)
-          .bindPopup(
-            `<strong>${index + 1}. ${escapeHtml(pin.title)}</strong>` +
-              (pin.time ? `<span class="triply-leaflet-popup-time">${escapeHtml(pin.time)}</span>` : '') +
-              (pin.mapsUrl
-                ? `<a href="${pin.mapsUrl}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>`
-                : ''),
-            { className: 'triply-leaflet-popup' },
-          );
+          .bindPopup(content, { className: 'triply-leaflet-popup' });
       });
 
       // Fit to the route's own extent when there is one — it can bulge
@@ -186,7 +226,9 @@ export function DayMapDialog({
 
       {!error && pins?.length === 0 && (
         <p className="text-[13px] text-muted">
-          Nothing to show yet — add a stop to a card to see it here.
+          {doneSpots.length > 0
+            ? 'Every spot on this day is done.'
+            : 'Nothing to show yet — add a stop to a card to see it here.'}
         </p>
       )}
 
@@ -212,6 +254,21 @@ export function DayMapDialog({
           </a>
         )}
       </div>
+
+      {!error && pins !== null && doneSpots.length > 0 && (
+        <p className="mt-3 text-[12.5px] text-muted">
+          {doneSpots.length === 1
+            ? `${doneSpots[0].title || 'One spot'} is done and left off the route.`
+            : `${doneSpots.length} spots are done and left off the route.`}{' '}
+          <button
+            type="button"
+            onClick={() => void setDone(doneSpots.map((item) => item.id), false)}
+            className="font-semibold text-brand-on-soft hover:underline"
+          >
+            Show {doneSpots.length === 1 ? 'it' : 'them'} again
+          </button>
+        </p>
+      )}
     </Dialog>
   );
 }

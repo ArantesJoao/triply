@@ -85,6 +85,8 @@ export const itemInput = z.object({
    * Null/omitted behaves like false: no pin, nothing geocoded.
    */
   isPlace: z.boolean().nullable().optional(),
+  /** Visited already; the day map leaves it out. */
+  done: z.boolean().optional(),
 });
 
 export const columnInput = z.object({

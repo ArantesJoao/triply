@@ -50,6 +50,14 @@ export function fetchDayMap(tripId: string, columnId: string): Promise<DayMap> {
 }
 
 /**
+ * Drops a column's cached map, so the next {@link fetchDayMap} asks the server
+ * again — for a change the map has to reflect, like a card marked done.
+ */
+export function forgetDayMap(columnId: string) {
+  cache.delete(columnId);
+}
+
+/**
  * Warms every column's map in the background, one at a time. Sequential on
  * purpose: the server's Nominatim throttle only serializes calls within one
  * request, so firing every column's request at once could still land on

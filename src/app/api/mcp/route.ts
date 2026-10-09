@@ -175,6 +175,9 @@ const itemProperties = {
       "Default is null (also true of every card written before this field existed), which is treated exactly like false: no pin, nothing geocoded. That is the safe default — a generic title fed to a geocoder can match an obscure, wrong, same-named place kilometres from where the day actually happens, so leave it unset rather than guess when it's unclear.",
     ].join('\n\n'),
   },
+  done: bool(
+    'The traveller has already been here. A done card is left off the day map — no pin, and not a stop on the day\'s route or its Google Maps link — so the route starts from what is still ahead. Defaults to false; only set it when the traveller says they have visited the place.',
+  ),
 } as const;
 
 const columnSchema = {
